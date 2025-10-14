@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta ViaCEP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+    <style>
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 20px 20px;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            border-radius: 15px;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            border: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+        .endereco-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+        }
+        .error-card {
+            background: #fff5f5;
+            border-left: 4px solid #e53e3e;
+        }
+        .historico-item {
+            border-left: 3px solid #667eea;
+            padding-left: 1rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="display-5 fw-bold">
+                        <i class="bi bi-geo-alt-fill"></i> Consulta ViaCEP
+                    </h1>
+                    <p class="lead">Encontre endereços e CEPs de todo o Brasil</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="card bg-dark bg-opacity-25 text-white">
+                        <div class="card-body">
+                            <h6><i class="bi bi-info-circle"></i> Sobre a API</h6>
+                            <small>ViaCEP - Webservice gratuito de CEP</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <!-- Formulários de Busca -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-search"></i> Consultar Endereço
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Navegação por abas -->
+                        <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="cep-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#cep" type="button" role="tab">
+                                    <i class="bi bi-postcard"></i> Por CEP
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="endereco-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#endereco" type="button" role="tab">
+                                    <i class="bi bi-geo-alt"></i> Por Endereço
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="myTabContent">
+                            <!-- Tab Por CEP -->
+                            <div class="tab-pane fade show active" id="cep" role="tabpanel">
+                                <form th:action="@{/buscar-cep}" method="post">
+                                    <div class="mb-3">
+                                        <label for="cep" class="form-label">
+                                            <strong>Digite o CEP:</strong>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="bi bi-postcard"></i>
+                                            </span>
+                                            <input type="text" class="form-control" id="cep" name="cep" 
+                                                   th:value="${cepPesquisado}" 
+                                                   placeholder="00000-000 ou 00000000" 
+                                                   pattern="[0-9]{5}-?[0-9]{3}" 
+                                                   required>
+                                        </div>
+                                        <div class="form-text">
+                                            Digite o CEP no formato 00000-000 ou 00000000
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-search"></i> Buscar por CEP
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Tab Por Endereço -->
+                            <div class="tab-pane fade" id="endereco" role="tabpanel">
+                                <form th:action="@{/buscar-endereco}" method="post">
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="uf" class="form-label">UF</label>
+                                            <select class="form-select" id="uf" name="uf" required
+                                                    th:value="${ufPesquisado}">
+                                                <option value="">Selecione...</option>
+                                                <option value="AC">AC</option>
+                                                <option value="AL">AL</option>
+                                                <option value="AP">AP</option>
+                                                <option value="AM">AM</option>
+                                                <option value="BA">BA</option>
+                                                <option value="CE">CE</option>
+                                                <option value="DF">DF</option>
+                                                <option value="ES">ES</option>
+                                                <option value="GO">GO</option>
+                                                <option value="MA">MA</option>
+                                                <option value="MT">MT</option>
+                                                <option value="MS">MS</option>
+                                                <option value="MG">MG</option>
+                                                <option value="PA">PA</option>
+                                                <option value="PB">PB</option>
+                                                <option value="PR">PR</option>
+                                                <option value="PE">PE</option>
+                                                <option value="PI">PI</option>
+                                                <option value="RJ">RJ</option>
+                                                <option value="RN">RN</option>
+                                                <option value="RS">RS</option>
+                                                <option value="RO">RO</option>
+                                                <option value="RR">RR</option>
+                                                <option value="SC">SC</option>
+                                                <option value="SP">SP</option>
+                                                <option value="SE">SE</option>
+                                                <option value="TO">TO</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-8 mb-3">
+                                            <label for="localidade" class="form-label">Cidade</label>
+                                            <input type="text" class="form-control" id="localidade" 
+                                                   name="localidade" th:value="${localidadePesquisada}"
+                                                   placeholder="Nome da cidade" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="logradouro" class="form-label">Logradouro</label>
+                                        <input type="text" class="form-control" id="logradouro" 
+                                               name="logradouro" th:value="${logradouroPesquisado}"
+                                               placeholder="Nome da rua, avenida, etc." required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-geo-alt"></i> Buscar por Endereço
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 text-center">
+                            <a th:href="@{/limpar}" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-arrow-clockwise"></i> Limpar Consulta
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card de Informações -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-info-circle"></i> Como usar</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <h6><i class="bi bi-postcard text-primary"></i> Por CEP</h6>
+                                <small class="text-muted">
+                                    Digite qualquer CEP válido do Brasil
+                                </small>
+                            </div>
+                            <div class="col-6">
+                                <h6><i class="bi bi-geo-alt text-success"></i> Por Endereço</h6>
+                                <small class="text-muted">
+                                    Informe UF, cidade e logradouro
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resultados -->
+            <div class="col-lg-6">
+                <!-- Resultado da Consulta -->
+                <div class="card" th:if="${endereco != null}">
+                    <div class="card-header" th:classappend="${endereco.erro} ? 'bg-danger' : 'bg-success'">
+                        <h5 class="card-title mb-0 text-white">
+                            <i class="bi" 
+                               th:classappend="${endereco.erro} ? 'bi-exclamation-triangle' : 'bi-check-circle'"></i>
+                            <span th:text="${endereco.erro} ? 'CEP não encontrado' : 'Endereço Encontrado'"></span>
+                        </h5>
+                    </div>
+                    <div class="card-body" th:classappend="${endereco.erro} ? 'error-card' : 'endereco-card'">
+                        <div th:if="${endereco.erro}">
+                            <div class="text-center text-danger mb-3">
+                                <i class="bi bi-exclamation-triangle" style="font-size: 3rem;"></i>
+                                <h5>CEP não encontrado!</h5>
+                                <p class="mb-0">Verifique se o CEP ou endereço estão corretos.</p>
+                            </div>
+                        </div>
+                        
+                        <div th:unless="${endereco.erro}">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Endereço Completo</h6>
+                                    <p class="mb-1">
+                                        <strong th:text="${endereco.logradouro}"></strong>
+                                    </p>
+                                    <p class="mb-1" th:if="${endereco.complemento}">
+                                        Complemento: <span th:text="${endereco.complemento}"></span>
+                                    </p>
+                                    <p class="mb-1">
+                                        Bairro: <strong th:text="${endereco.bairro}"></strong>
+                                    </p>
+                                    <p class="mb-1">
+                                        <span th:text="${endereco.localidade}"></span> - 
+                                        <span th:text="${endereco.uf}"></span>
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Informações Adicionais</h6>
+                                    <p class="mb-1">
+                                        CEP: <strong th:text="${endereco.cep}"></strong>
+                                    </p>
+                                    <p class="mb-1" th:if="${endereco.ddd}">
+                                        DDD: <span th:text="${endereco.ddd}"></span>
+                                    </p>
+                                    <p class="mb-1" th:if="${endereco.ibge}">
+                                        Código IBGE: <span th:text="${endereco.ibge}"></span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Histórico -->
+                <div class="card" th:if="${historico != null and !historico.empty}">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-clock-history"></i> Últimas Consultas</h6>
+                    </div>
+                    <div class="card-body">
+                        <div th:each="enderecoHist : ${historico}" class="historico-item">
+                            <small>
+                                <strong th:text="${enderecoHist.cep}"></strong> - 
+                                <span th:text="${enderecoHist.logradouro}"></span>, 
+                                <span th:text="${enderecoHist.bairro}"></span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informações da API -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-database"></i> Sobre o ViaCEP</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="small mb-2">
+                            <strong>ViaCEP</strong> é um webservice gratuito que disponibiliza 
+                            consultas a base de CEPs do Brasil.
+                        </p>
+                        <div class="row small text-muted">
+                            <div class="col-6">
+                                <i class="bi bi-check-circle text-success"></i> Gratuito
+                            </div>
+                            <div class="col-6">
+                                <i class="bi bi-check-circle text-success"></i> Sem cadastro
+                            </div>
+                            <div class="col-6">
+                                <i class="bi bi-check-circle text-success"></i> JSON/XML
+                            </div>
+                            <div class="col-6">
+                                <i class="bi bi-check-circle text-success"></i> Atualizado
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white mt-5 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="bi bi-geo-alt"></i> ViaCEP Explorer</h6>
+                    <small>Desenvolvido com Spring Boot e Thymeleaf</small>
+                </div>
+                <div class="col-md-6 text-end">
+                    <small>API: <a href="https://viacep.com.br" class="text-white">viacep.com.br</a></small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Máscara para o CEP
+        document.getElementById('cep')?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 5) {
+                value = value.substring(0, 5) + '-' + value.substring(5, 8);
+            }
+            e.target.value = value;
+        });
+
+        // Preencher select baseado na busca anterior
+        document.addEventListener('DOMContentLoaded', function() {
+            const ufPesquisado = "[[${ufPesquisado}]]";
+            if (ufPesquisado) {
+                document.getElementById('uf').value = ufPesquisado;
+            }
+        });
+    </script>
+</body>
+</html>
