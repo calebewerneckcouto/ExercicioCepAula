@@ -35,7 +35,11 @@ public class Endereco {
     private String siafi;
     
     private boolean erro;
-
+    
+    // Novos campos para coordenadas
+    private Double latitude;
+    private Double longitude;
+    
     // Construtores
     public Endereco() {}
 
@@ -88,6 +92,12 @@ public class Endereco {
     public boolean isErro() { return erro; }
     public void setErro(boolean erro) { this.erro = erro; }
 
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
+
     @Override
     public String toString() {
         return "Endereco{" +
@@ -101,6 +111,8 @@ public class Endereco {
                 ", gia='" + gia + '\'' +
                 ", ddd='" + ddd + '\'' +
                 ", siafi='" + siafi + '\'' +
+                ", latitude=" + latitude +
+                ", longitude=" + longitude +
                 ", erro=" + erro +
                 '}';
     }

@@ -3,337 +3,654 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consulta ViaCEP</title>
+    <title>GPS Navegação Avançada</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
-        .hero-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 3rem 0;
-            margin-bottom: 2rem;
-            border-radius: 0 0 20px 20px;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
         }
-        .card {
-            border: none;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 1.5rem;
+        
+        .map-container {
+            height: 650px;
+            position: relative;
             border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
-        .card-header {
+        
+        .navigation-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+        
+        .navigation-panel.active {
+            display: block;
+        }
+        
+        .search-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        
+        .search-results {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .search-result-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .search-result-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .next-instruction {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .instruction-icon {
+            font-size: 2.5rem;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .distance-badge {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 1rem;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        
+        .eta-info {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .eta-item {
+            text-align: center;
+        }
+        
+        .eta-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .eta-label {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .floating-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
             border: none;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s;
         }
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
+        
+        .control-btn:hover {
+            transform: scale(1.1);
         }
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-        }
-        .nav-tabs .nav-link.active {
+        
+        .control-btn.primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border: none;
+            width: 60px;
+            height: 60px;
         }
-        .endereco-card {
+        
+        .pulse-marker {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #007bff;
+            border: 3px solid white;
+            box-shadow: 0 0 0 rgba(0, 123, 255, 0.4);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 15px rgba(0, 123, 255, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+            }
+        }
+        
+        .maneuver-alert {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+        }
+        
+        .maneuver-alert.show {
+            display: block;
+            animation: alertPulse 0.5s ease;
+        }
+        
+        .maneuver-alert .icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+        }
+        
+        .maneuver-alert .text {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        @keyframes alertPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        
+        .speed-display {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+        }
+        
+        .speed-display.active {
+            display: block;
+        }
+        
+        .speed-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .speed-unit {
+            font-size: 1rem;
+            color: #666;
+        }
+        
+        .gps-status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .gps-active {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+        
+        .gps-inactive {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        
+        .position-info {
+            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            font-size: 0.9em;
+        }
+        
+        .history-item {
             background: #f8f9fa;
             border-left: 4px solid #667eea;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
         }
-        .error-card {
-            background: #fff5f5;
-            border-left: 4px solid #e53e3e;
+        
+        .history-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        .historico-item {
-            border-left: 3px solid #667eea;
-            padding-left: 1rem;
-            margin-bottom: 0.5rem;
+        
+        .history-item .address {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
         }
-        .input-error {
-            border-color: #dc3545 !important;
-            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+        
+        .history-item .coords {
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        .history-item .actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        
+        .history-item .btn-mini {
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            border-radius: 15px;
+        }
+        
+        .route-selector {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+        
+        .route-selector .selected-point {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 5px 0;
+        }
+        
+        .route-selector .selected-point.empty {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+        }
+        
+        .instruction-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            transition: all 0.3s;
+        }
+        
+        .instruction-card.active {
+            border: 3px solid #ffeb3b;
+            box-shadow: 0 0 20px rgba(255, 235, 59, 0.5);
+            transform: scale(1.02);
+        }
+        
+        .instruction-card.passed {
+            opacity: 0.5;
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+        }
+        
+        .instruction-number {
+            background: white;
+            color: #667eea;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .location-option {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .location-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .location-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        }
+        
+        .route-line {
+            stroke: #007bff;
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
-    <!-- Hero Section -->
-    <div class="hero-section">
-        <div class="container">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h1 class="display-5 fw-bold">
-                        <i class="bi bi-geo-alt-fill"></i> Consulta ViaCEP
-                    </h1>
-                    <p class="lead">Encontre endereços e CEPs de todo o Brasil</p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="card bg-dark bg-opacity-25 text-white">
-                        <div class="card-body">
-                            <h6><i class="bi bi-info-circle"></i> Sobre a API</h6>
-                            <small>ViaCEP - Webservice gratuito de CEP</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div class="container-fluid py-4">
+        <!-- Mensagens -->
+        <div th:if="${erroRota}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle"></i> 
+            <span th:text="${erroRota}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-    </div>
 
-    <div class="container">
+        <div th:if="${sucessoRota}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle"></i> 
+            <span th:text="${sucessoRota}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
         <div class="row">
-            <!-- Formulários de Busca -->
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-search"></i> Consultar Endereço
-                        </h5>
+            <!-- Sidebar -->
+            <div class="col-md-4">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0"><i class="fas fa-route"></i> Navegação GPS</h4>
                     </div>
                     <div class="card-body">
-                        <!-- Navegação por abas -->
-                        <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="cep-tab" data-bs-toggle="tab" 
-                                        data-bs-target="#cep" type="button" role="tab">
-                                    <i class="bi bi-postcard"></i> Por CEP
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="endereco-tab" data-bs-toggle="tab" 
-                                        data-bs-target="#endereco" type="button" role="tab">
-                                    <i class="bi bi-geo-alt"></i> Por Endereço
-                                </button>
-                            </li>
-                        </ul>
+                        <!-- Status do GPS -->
+                        <div id="gpsStatus" class="gps-status gps-inactive">
+                            <i class="fas fa-satellite-dish"></i> GPS Inativo
+                        </div>
 
-                        <div class="tab-content" id="myTabContent">
-                            <!-- Tab Por CEP -->
-                            <div class="tab-pane fade show active" id="cep" role="tabpanel">
-                                <form th:action="@{/buscar-cep}" method="post" id="formCep">
-                                    <div class="mb-3">
-                                        <label for="cep" class="form-label">
-                                            <strong>Digite o CEP:</strong>
-                                        </label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">
-                                                <i class="bi bi-postcard"></i>
-                                            </span>
-                                            <input type="text" class="form-control" id="cep" name="cep" 
-                                                   th:value="${cepPesquisado}" 
-                                                   placeholder="00000-000 ou 00000000" 
-                                                   pattern="[0-9]{5}-?[0-9]{3}" 
-                                                   required>
-                                        </div>
-                                        <div class="form-text">
-                                            Digite o CEP no formato 00000-000 ou 00000000
-                                        </div>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="bi bi-search"></i> Buscar por CEP
-                                    </button>
-                                </form>
+                        <!-- Informações de Posição -->
+                        <div id="positionInfo" class="position-info" style="display: none;">
+                            <div class="row">
+                                <div class="col-6">
+                                    <small><strong>Latitude:</strong></small>
+                                    <div id="currentLat">-</div>
+                                </div>
+                                <div class="col-6">
+                                    <small><strong>Longitude:</strong></small>
+                                    <div id="currentLng">-</div>
+                                </div>
                             </div>
-
-                            <!-- Tab Por Endereço -->
-                            <div class="tab-pane fade" id="endereco" role="tabpanel">
-                                <form th:action="@{/buscar-endereco}" method="post" id="formEndereco">
-                                    <div class="row">
-                                        <div class="col-md-4 mb-3">
-                                            <label for="uf" class="form-label">UF</label>
-                                            <select class="form-select" id="uf" name="uf" required
-                                                    th:value="${ufPesquisado}">
-                                                <option value="">Selecione...</option>
-                                                <option value="AC">AC</option>
-                                                <option value="AL">AL</option>
-                                                <option value="AP">AP</option>
-                                                <option value="AM">AM</option>
-                                                <option value="BA">BA</option>
-                                                <option value="CE">CE</option>
-                                                <option value="DF">DF</option>
-                                                <option value="ES">ES</option>
-                                                <option value="GO">GO</option>
-                                                <option value="MA">MA</option>
-                                                <option value="MT">MT</option>
-                                                <option value="MS">MS</option>
-                                                <option value="MG">MG</option>
-                                                <option value="PA">PA</option>
-                                                <option value="PB">PB</option>
-                                                <option value="PR">PR</option>
-                                                <option value="PE">PE</option>
-                                                <option value="PI">PI</option>
-                                                <option value="RJ">RJ</option>
-                                                <option value="RN">RN</option>
-                                                <option value="RS">RS</option>
-                                                <option value="RO">RO</option>
-                                                <option value="RR">RR</option>
-                                                <option value="SC">SC</option>
-                                                <option value="SP">SP</option>
-                                                <option value="SE">SE</option>
-                                                <option value="TO">TO</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-8 mb-3">
-                                            <label for="localidade" class="form-label">Cidade</label>
-                                            <input type="text" class="form-control" id="localidade" 
-                                                   name="localidade" th:value="${localidadePesquisada}"
-                                                   placeholder="Nome da cidade" 
-                                                   pattern="[a-zA-ZÀ-ÿ\s\-]+"
-                                                   title="Digite apenas letras e espaços"
-                                                   required>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="logradouro" class="form-label">Logradouro</label>
-                                        <input type="text" class="form-control" id="logradouro" 
-                                               name="logradouro" th:value="${logradouroPesquisado}"
-                                               placeholder="Nome da rua, avenida, etc. (sem números)" 
-                                               pattern="[a-zA-ZÀ-ÿ\s\.\-]+"
-                                               title="Digite apenas o nome do logradouro, sem números"
-                                               required>
-                                        <div class="form-text text-warning">
-                                            <i class="bi bi-exclamation-triangle"></i>
-                                            Digite apenas o nome do logradouro sem números (ex: "Avenida Paulista")
-                                        </div>
-                                        <div class="invalid-feedback" id="logradouroError">
-                                            Por favor, digite apenas o nome do logradouro sem números.
-                                        </div>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="bi bi-geo-alt"></i> Buscar por Endereço
-                                    </button>
-                                </form>
+                            <div class="row mt-2">
+                                <div class="col-6">
+                                    <small><strong>Precisão:</strong></small>
+                                    <div id="currentAccuracy">- m</div>
+                                </div>
+                                <div class="col-6">
+                                    <small><strong>Velocidade:</strong></small>
+                                    <div id="currentSpeed">- km/h</div>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mt-3 text-center">
-                            <a th:href="@{/limpar}" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-arrow-clockwise"></i> Limpar Consulta
+                        <!-- Form para calcular rota -->
+                        <div class="route-selector">
+                            <h6 class="mb-3"><i class="fas fa-map-marked-alt"></i> Calcular Rota</h6>
+                            
+                            <form th:action="@{/calcular-rota}" method="post" id="formRota">
+                                <div class="selected-point" id="origemDisplay">
+                                    <strong>📍 Origem:</strong>
+                                    <div id="origemText" class="mt-1">Nenhuma origem selecionada</div>
+                                    <input type="hidden" id="origemCep" name="origemCep" value="">
+                                </div>
+                                
+                                <div class="selected-point mt-2" id="destinoDisplay">
+                                    <strong>🏁 Destino:</strong>
+                                    <div id="destinoText" class="mt-1">Nenhum destino selecionado</div>
+                                    <input type="hidden" id="destinoCep" name="destinoCep" value="">
+                                </div>
+                                
+                                <button type="submit" class="btn btn-light w-100 mt-3" id="btnCalcularRota" disabled>
+                                    <i class="fas fa-route"></i> Calcular Rota
+                                </button>
+                            </form>
+                            
+                            <button class="btn btn-outline-light btn-sm w-100 mt-2" onclick="limparSelecao()">
+                                <i class="fas fa-times"></i> Limpar Seleção
+                            </button>
+                        </div>
+
+                        <!-- Histórico -->
+                        <div class="mt-4">
+                            <h6><i class="fas fa-history"></i> Locais Salvos</h6>
+                            <div id="historicoContainer">
+                                <!-- Corrigido: usando data attributes em vez de onclick com Thymeleaf -->
+                                <div th:each="endereco : ${historico}" class="history-item" 
+                                     th:data-cep="${endereco.cep}" 
+                                     th:data-endereco="${endereco.logradouro} + ', ' + ${endereco.localidade}">
+                                    <div class="address" th:text="${endereco.logradouro}">Endereço</div>
+                                    <div class="coords">
+                                        <span th:text="${endereco.localidade} + ' - ' + ${endereco.uf}">Cidade</span> •
+                                        <span th:text="${endereco.cep}">CEP</span>
+                                    </div>
+                                    <div class="actions">
+                                        <button class="btn btn-success btn-mini btn-origem">
+                                            📍 Origem
+                                        </button>
+                                        <button class="btn btn-danger btn-mini btn-destino">
+                                            🏁 Destino
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div th:if="${historico == null || historico.empty}" class="text-muted text-center py-3">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <p class="mb-0">Nenhum local salvo</p>
+                                <small>Busque endereços para salvá-los</small>
+                            </div>
+                            
+                            <a th:href="@{/limpar}" class="btn btn-sm btn-outline-danger mt-2 w-100">
+                                <i class="fas fa-trash"></i> Limpar Histórico
                             </a>
                         </div>
                     </div>
                 </div>
 
-                <!-- Card de Informações -->
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="bi bi-info-circle"></i> Como usar</h6>
+                <!-- Instruções -->
+                <div th:if="${rota != null}" class="card shadow-lg mt-3">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-list-ol"></i> Instruções de Navegação</h5>
                     </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-6">
-                                <h6><i class="bi bi-postcard text-primary"></i> Por CEP</h6>
-                                <small class="text-muted">
-                                    Digite qualquer CEP válido do Brasil
-                                </small>
-                            </div>
-                            <div class="col-6">
-                                <h6><i class="bi bi-geo-alt text-success"></i> Por Endereço</h6>
-                                <small class="text-muted">
-                                    Informe UF, cidade e logradouro (sem números)
-                                </small>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Corrigido: removendo atributos problemáticos do Thymeleaf -->
+                        <div th:each="instrucao, stat : ${rota.instrucoes}" 
+                             class="instruction-card" 
+                             th:attr="data-index=${stat.index}">
+                            <div class="d-flex align-items-center">
+                                <span class="instruction-number" th:text="${stat.index + 1}">1</span>
+                                <div class="flex-grow-1">
+                                    <strong th:text="${instrucao.instrucao}">Instrução</strong>
+                                    <br>
+                                    <small th:if="${instrucao.distancia > 0}">
+                                        <span th:text="${#numbers.formatDecimal(instrucao.distancia, 0, 0)} + ' m'">Distância</span>
+                                    </small>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Resultados -->
-            <div class="col-lg-6">
-                <!-- Resultado da Consulta -->
-                <div class="card" th:if="${endereco != null}">
-                    <div class="card-header" th:classappend="${endereco.erro} ? 'bg-danger' : 'bg-success'">
-                        <h5 class="card-title mb-0 text-white">
-                            <i class="bi" 
-                               th:classappend="${endereco.erro} ? 'bi-exclamation-triangle' : 'bi-check-circle'"></i>
-                            <span th:text="${endereco.erro} ? 'Endereço não encontrado' : 'Endereço Encontrado'"></span>
-                        </h5>
-                    </div>
-                    <div class="card-body" th:classappend="${endereco.erro} ? 'error-card' : 'endereco-card'">
-                        <div th:if="${endereco.erro}">
-                            <div class="text-center text-danger mb-3">
-                                <i class="bi bi-exclamation-triangle" style="font-size: 3rem;"></i>
-                                <h5>Endereço não encontrado!</h5>
-                                <p class="mb-0">Verifique se os dados estão corretos.</p>
-                                <small class="text-muted">
-                                    Dica: Use apenas o nome do logradouro sem números
-                                </small>
-                            </div>
+            <!-- Mapa Principal -->
+            <div class="col-md-8">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-dark text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-map"></i> Navegação em Tempo Real</h5>
+                            <button class="btn btn-sm btn-light" onclick="iniciarGPS()">
+                                <i class="fas fa-satellite"></i> <span id="btnGpsText">Ativar GPS</span>
+                            </button>
                         </div>
+                    </div>
+                    <div class="card-body p-0 position-relative">
+                        <!-- Busca Unificada -->
+                        <div class="search-container">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="inputBusca" 
+                                       placeholder="Digite CEP, número, endereço ou coordenadas...">
+                                <button class="btn btn-primary" onclick="buscarEndereco()">
+                                    <i class="fas fa-search"></i> Buscar
+                                </button>
+                            </div>
+                            <div class="search-results" id="searchResults"></div>
+                        </div>
+
+                        <div id="map" class="map-container"></div>
                         
-                        <div th:unless="${endereco.erro}">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6 class="text-primary">Endereço Completo</h6>
-                                    <p class="mb-1">
-                                        <strong th:text="${endereco.logradouro}"></strong>
-                                    </p>
-                                    <p class="mb-1" th:if="${endereco.complemento}">
-                                        Complemento: <span th:text="${endereco.complemento}"></span>
-                                    </p>
-                                    <p class="mb-1">
-                                        Bairro: <strong th:text="${endereco.bairro}"></strong>
-                                    </p>
-                                    <p class="mb-1">
-                                        <span th:text="${endereco.localidade}"></span> - 
-                                        <span th:text="${endereco.uf}"></span>
-                                    </p>
+                        <!-- Painel de Navegação -->
+                        <div id="navigationPanel" class="navigation-panel">
+                            <div class="next-instruction">
+                                <div class="instruction-icon" id="nextIcon">
+                                    <i class="fas fa-arrow-up"></i>
                                 </div>
-                                <div class="col-md-6">
-                                    <h6 class="text-primary">Informações Adicionais</h6>
-                                    <p class="mb-1">
-                                        CEP: <strong th:text="${endereco.cep}"></strong>
-                                    </p>
-                                    <p class="mb-1" th:if="${endereco.ddd}">
-                                        DDD: <span th:text="${endereco.ddd}"></span>
-                                    </p>
-                                    <p class="mb-1" th:if="${endereco.ibge}">
-                                        Código IBGE: <span th:text="${endereco.ibge}"></span>
-                                    </p>
+                                <div class="flex-grow-1">
+                                    <div id="nextInstructionText">Iniciando navegação...</div>
+                                    <div class="distance-badge" id="nextDistance">Preparando...</div>
                                 </div>
                             </div>
+                            <div class="eta-info">
+                                <div class="eta-item">
+                                    <div class="eta-value" id="etaTime">--:--</div>
+                                    <div class="eta-label">Chegada</div>
+                                </div>
+                                <div class="eta-item">
+                                    <div class="eta-value" id="remainingDistance">-- km</div>
+                                    <div class="eta-label">Restante</div>
+                                </div>
+                                <div class="eta-item">
+                                    <div class="eta-value" id="remainingTime">-- min</div>
+                                    <div class="eta-label">Tempo</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Velocímetro -->
+                        <div id="speedDisplay" class="speed-display">
+                            <span class="speed-value" id="speedValue">0</span>
+                            <span class="speed-unit">km/h</span>
+                        </div>
+
+                        <!-- Alerta de Manobra -->
+                        <div id="maneuverAlert" class="maneuver-alert">
+                            <div class="icon" id="alertIcon">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                            <div class="text" id="alertText">Vire à direita</div>
+                        </div>
+
+                        <!-- Controles Flutuantes -->
+                        <div class="floating-controls">
+                            <button class="control-btn primary" id="btnStartNav" onclick="iniciarNavegacao()" title="Iniciar Navegação">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button class="control-btn" onclick="centralizarNoUsuario()" title="Minha Posição">
+                                <i class="fas fa-crosshairs"></i>
+                            </button>
+                            <button class="control-btn" onclick="centralizarRota()" title="Ver Rota">
+                                <i class="fas fa-route"></i>
+                            </button>
+                            <button class="control-btn" id="btnVoice" onclick="toggleVoz()" title="Voz">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Histórico -->
-                <div class="card" th:if="${historico != null and !historico.empty}">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="bi bi-clock-history"></i> Últimas Consultas</h6>
-                    </div>
+                <!-- Informações da Rota -->
+                <div th:if="${rota != null}" class="card shadow-lg mt-3">
                     <div class="card-body">
-                        <div th:each="enderecoHist : ${historico}" class="historico-item">
-                            <small>
-                                <strong th:text="${enderecoHist.cep}"></strong> - 
-                                <span th:text="${enderecoHist.logradouro}"></span>, 
-                                <span th:text="${enderecoHist.bairro}"></span>
-                            </small>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <h3 class="text-primary">
+                                    <span th:text="${#numbers.formatDecimal(rota.distancia/1000, 1, 2)}"></span> km
+                                </h3>
+                                <small class="text-muted">Distância Total</small>
+                            </div>
+                            <div class="col-4">
+                                <h3 class="text-success">
+                                    <span th:text="${#numbers.formatDecimal(rota.duracao/60, 1, 0)}"></span> min
+                                </h3>
+                                <small class="text-muted">Tempo Estimado</small>
+                            </div>
+                            <div class="col-4">
+                                <h3 class="text-info" th:text="${rota.instrucoes.size()}">0</h3>
+                                <small class="text-muted">Instruções</small>
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Informações da API -->
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="bi bi-database"></i> Sobre o ViaCEP</h6>
-                    </div>
-                    <div class="card-body">
-                        <p class="small mb-2">
-                            <strong>ViaCEP</strong> é um webservice gratuito que disponibiliza 
-                            consultas a base de CEPs do Brasil.
-                        </p>
-                        <div class="row small text-muted">
+                        <hr>
+                        <div class="row">
                             <div class="col-6">
-                                <i class="bi bi-check-circle text-success"></i> Gratuito
+                                <strong><i class="fas fa-play-circle text-success"></i> Origem:</strong><br>
+                                <span th:text="${rota.origem.logradouro} + ', ' + ${rota.origem.localidade}">Origem</span>
                             </div>
                             <div class="col-6">
-                                <i class="bi bi-check-circle text-success"></i> Sem cadastro
-                            </div>
-                            <div class="col-6">
-                                <i class="bi bi-check-circle text-success"></i> JSON/XML
-                            </div>
-                            <div class="col-6">
-                                <i class="bi bi-check-circle text-success"></i> Atualizado
+                                <strong><i class="fas fa-flag-checkered text-danger"></i> Destino:</strong><br>
+                                <span th:text="${rota.destino.logradouro} + ', ' + ${rota.destino.localidade}">Destino</span>
                             </div>
                         </div>
                     </div>
@@ -342,97 +659,670 @@
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="bg-dark text-white mt-5 py-4">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-6">
-                    <h6><i class="bi bi-geo-alt"></i> ViaCEP Explorer</h6>
-                    <small>Desenvolvido com Spring Boot e Thymeleaf</small>
-                </div>
-                <div class="col-md-6 text-end">
-                    <small>API: <a href="https://viacep.com.br" class="text-white">viacep.com.br</a></small>
-                </div>
-            </div>
-        </div>
-    </footer>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Máscara para o CEP
-        document.getElementById('cep')?.addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 5) {
-                value = value.substring(0, 5) + '-' + value.substring(5, 8);
-            }
-            e.target.value = value;
-        });
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.0/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    
+    <script th:inline="javascript">
+        var map;
+        var routeLayer = null;
+        var originMarker = null;
+        var destinationMarker = null;
+        var userMarker = null;
+        var userCircle = null;
+        var watchId = null;
+        var currentInstructionIndex = 0;
+        var isGPSActive = false;
+        var isNavigating = false;
+        var isVoiceEnabled = true;
+        var rotaData = /*[[${rota}]]*/ null;
+        var lastPosition = null;
+        var velocidadeAtual = 0;
+        var instrucoes = [];
+        var routeCoordinates = [];
+        var origemSelecionada = null;
+        var destinoSelecionado = null;
+        var stompClient = null;
+        var routePolyline = null;
 
-        // Validação do campo logradouro - remove números em tempo real
-        document.getElementById('logradouro')?.addEventListener('input', function(e) {
-            let value = e.target.value;
-            // Remove números e caracteres especiais, mantém apenas letras, espaços, hífen e ponto
-            value = value.replace(/[^a-zA-ZÀ-ÿ\s\.\-]/g, '');
-            // Remove múltiplos espaços
-            value = value.replace(/\s+/g, ' ').trim();
-            e.target.value = value;
+        window.onload = function() {
+            inicializarMapa();
+            conectarWebSocket();
+            configurarEventListeners();
             
-            // Validação visual
-            if (/[0-9]/.test(value)) {
-                this.classList.add('input-error');
+            if (rotaData) {
+                processarRota();
+                desenharRotaCompleta();
+            }
+        };
+
+        function configurarEventListeners() {
+            // Event listeners para busca
+            document.getElementById('inputBusca').addEventListener('input', function(e) {
+                if (e.target.value.length >= 3) {
+                    buscarEnderecoAutocomplete(e.target.value);
+                } else {
+                    document.getElementById('searchResults').style.display = 'none';
+                }
+            });
+            
+            document.getElementById('inputBusca').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    buscarEndereco();
+                }
+            });
+            
+            // Prevenir submit duplo do formulário
+            document.getElementById('formRota').addEventListener('submit', function(e) {
+                const btn = document.getElementById('btnCalcularRota');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculando...';
+            });
+
+            // Event listeners para histórico (corrigido)
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('btn-origem')) {
+                    const historyItem = e.target.closest('.history-item');
+                    const cep = historyItem.getAttribute('data-cep');
+                    const endereco = historyItem.getAttribute('data-endereco');
+                    definirOrigem(cep, endereco);
+                }
+                
+                if (e.target.classList.contains('btn-destino')) {
+                    const historyItem = e.target.closest('.history-item');
+                    const cep = historyItem.getAttribute('data-cep');
+                    const endereco = historyItem.getAttribute('data-endereco');
+                    definirDestino(cep, endereco);
+                }
+            });
+        }
+
+        function conectarWebSocket() {
+            const socket = new SockJS('/ws-gps');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function(frame) {
+                console.log('Conectado ao WebSocket: ' + frame);
+                
+                // Inscrever nos tópicos
+                stompClient.subscribe('/topic/instrucoes', function(message) {
+                    const instrucao = JSON.parse(message.body);
+                    atualizarInstrucaoAtual(instrucao);
+                });
+                
+                stompClient.subscribe('/topic/alerta', function(message) {
+                    const alerta = JSON.parse(message.body);
+                    mostrarAlertaManobra(alerta);
+                });
+                
+                stompClient.subscribe('/topic/chegada', function(message) {
+                    mostrarChegada(message.body);
+                });
+                
+            }, function(error) {
+                console.error('Erro WebSocket:', error);
+                setTimeout(conectarWebSocket, 5000);
+            });
+        }
+
+        function inicializarMapa() {
+            map = L.map('map').setView([-15.7797, -47.9297], 13);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        // Função de busca unificada
+        function buscarEndereco() {
+            const query = document.getElementById('inputBusca').value.trim();
+            if (!query) return;
+
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+            resultsDiv.style.display = 'block';
+
+            // Verifica se é coordenada
+            if (/^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(query)) {
+                const [lat, lng] = query.split(',').map(coord => parseFloat(coord.trim()));
+                mostrarResultadoCoordenada(lat, lng, query);
+                return;
+            }
+
+            // Verifica se é apenas número (buscar por número da casa)
+            if (/^\d+$/.test(query)) {
+                buscarPorNumero(query);
+                return;
+            }
+
+            // Busca por CEP ou endereço
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=10`)
+                .then(response => response.json())
+                .then(data => {
+                    mostrarResultadosBusca(data);
+                })
+                .catch(error => {
+                    console.error('Erro na busca:', error);
+                    resultsDiv.innerHTML = '<div class="text-danger p-2">Erro na busca. Tente novamente.</div>';
+                });
+        }
+
+        function buscarEnderecoAutocomplete(query) {
+            if (query.length < 3) return;
+
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5`)
+                .then(response => response.json())
+                .then(data => {
+                    mostrarResultadosBusca(data);
+                })
+                .catch(console.error);
+        }
+
+        function buscarPorNumero(numero) {
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(numero)}&addressdetails=1&limit=10`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultadosFiltrados = data.filter(item => 
+                        item.display_name.includes(numero) || 
+                        (item.address && item.address.house_number === numero)
+                    );
+                    mostrarResultadosBusca(resultadosFiltrados);
+                })
+                .catch(console.error);
+        }
+
+        function mostrarResultadosBusca(resultados) {
+            const resultsDiv = document.getElementById('searchResults');
+            
+            if (resultados.length === 0) {
+                resultsDiv.innerHTML = '<div class="text-muted p-2">Nenhum resultado encontrado.</div>';
+                return;
+            }
+
+            let html = '';
+            resultados.forEach((resultado, index) => {
+                const endereco = resultado.display_name;
+                const lat = parseFloat(resultado.lat);
+                const lng = parseFloat(resultado.lon);
+                
+                html += `
+                    <div class="search-result-item" onclick="selecionarResultadoBusca(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
+                        <div class="fw-bold">${endereco.split(',')[0]}</div>
+                        <small class="text-muted">${endereco}</small>
+                        <div class="mt-1">
+                            <small class="badge bg-primary">Lat: ${lat.toFixed(6)}</small>
+                            <small class="badge bg-primary ms-1">Lng: ${lng.toFixed(6)}</small>
+                        </div>
+                    </div>
+                `;
+            });
+
+            resultsDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+        }
+
+        function mostrarResultadoCoordenada(lat, lng, query) {
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(response => response.json())
+                .then(data => {
+                    const endereco = data.display_name || 'Localização desconhecida';
+                    const resultsDiv = document.getElementById('searchResults');
+                    
+                    resultsDiv.innerHTML = `
+                        <div class="search-result-item" onclick="selecionarResultadoBusca(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
+                            <div class="fw-bold">Coordenadas: ${query}</div>
+                            <small class="text-muted">${endereco}</small>
+                            <div class="mt-2">
+                                <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); definirOrigemCoordenadas(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
+                                    📍 Origem
+                                </button>
+                                <button class="btn btn-danger btn-sm ms-1" onclick="event.stopPropagation(); definirDestinoCoordenadas(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
+                                    🏁 Destino
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    resultsDiv.style.display = 'block';
+                })
+                .catch(console.error);
+        }
+
+        function selecionarResultadoBusca(lat, lng, endereco) {
+            map.setView([lat, lng], 16);
+            
+            if (userMarker) {
+                userMarker.setLatLng([lat, lng]);
             } else {
-                this.classList.remove('input-error');
+                userMarker = L.marker([lat, lng]).addTo(map)
+                    .bindPopup(`<b>Local Selecionado</b><br>${endereco}`)
+                    .openPopup();
             }
-        });
-
-        // Validação do campo cidade
-        document.getElementById('localidade')?.addEventListener('input', function(e) {
-            let value = e.target.value;
-            // Remove números e caracteres especiais
-            value = value.replace(/[^a-zA-ZÀ-ÿ\s\-]/g, '');
-            value = value.replace(/\s+/g, ' ').trim();
-            e.target.value = value;
-        });
-
-        // Validação do formulário de endereço
-        document.getElementById('formEndereco')?.addEventListener('submit', function(e) {
-            const logradouro = document.getElementById('logradouro').value;
-            const localidade = document.getElementById('localidade').value;
-            const uf = document.getElementById('uf').value;
             
-            let isValid = true;
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = `
+                <div class="location-option" onclick="definirOrigemCoordenadas(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
+                    <div class="fw-bold">📍 Definir como ORIGEM</div>
+                    <small class="text-muted">${endereco}</small>
+                </div>
+                <div class="location-option" onclick="definirDestinoCoordenadas(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
+                    <div class="fw-bold">🏁 Definir como DESTINO</div>
+                    <small class="text-muted">${endereco}</small>
+                </div>
+            `;
+        }
+
+        function definirOrigemCoordenadas(lat, lng, endereco) {
+            origemSelecionada = { lat: lat, lng: lng, endereco: endereco };
+            document.getElementById('origemText').textContent = endereco;
+            document.getElementById('origemCep').value = 'COORD:' + lat + ',' + lng;
+            document.getElementById('origemDisplay').classList.remove('empty');
+            verificarBotaoCalcular();
             
-            // Verifica se há números no logradouro
-            if (/[0-9]/.test(logradouro)) {
-                document.getElementById('logradouro').classList.add('input-error');
-                document.getElementById('logradouroError').style.display = 'block';
-                isValid = false;
+            if (originMarker) {
+                originMarker.setLatLng([lat, lng]);
             } else {
-                document.getElementById('logradouro').classList.remove('input-error');
-                document.getElementById('logradouroError').style.display = 'none';
+                originMarker = L.marker([lat, lng], { 
+                    icon: L.divIcon({ className: 'pulse-marker' })
+                }).addTo(map)
+                .bindPopup(`<b>Origem</b><br>${endereco}`);
             }
             
-            // Verifica UF selecionada
-            if (!uf) {
-                document.getElementById('uf').classList.add('input-error');
-                isValid = false;
-            } else {
-                document.getElementById('uf').classList.remove('input-error');
-            }
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('inputBusca').value = '';
             
-            if (!isValid) {
-                e.preventDefault();
-                alert('Por favor, corrija os erros no formulário:\n- Digite apenas o nome do logradouro sem números\n- Selecione a UF');
-            }
-        });
+            console.log('✓ Origem definida:', endereco);
+        }
 
-        // Preencher select baseado na busca anterior
-        document.addEventListener('DOMContentLoaded', function() {
-            const ufPesquisado = "[[${ufPesquisado}]]";
-            if (ufPesquisado) {
-                document.getElementById('uf').value = ufPesquisado;
+        function definirDestinoCoordenadas(lat, lng, endereco) {
+            destinoSelecionado = { lat: lat, lng: lng, endereco: endereco };
+            document.getElementById('destinoText').textContent = endereco;
+            document.getElementById('destinoCep').value = 'COORD:' + lat + ',' + lng;
+            document.getElementById('destinoDisplay').classList.remove('empty');
+            verificarBotaoCalcular();
+            
+            if (destinationMarker) {
+                destinationMarker.setLatLng([lat, lng]);
+            } else {
+                destinationMarker = L.marker([lat, lng], {
+                    icon: L.icon({
+                        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                        iconSize: [32, 32]
+                    })
+                }).addTo(map)
+                .bindPopup(`<b>Destino</b><br>${endereco}`);
             }
-        });
+            
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('inputBusca').value = '';
+            
+            console.log('✓ Destino definido:', endereco);
+        }
+
+        function definirOrigem(cep, endereco) {
+            origemSelecionada = { cep: cep, endereco: endereco };
+            document.getElementById('origemText').textContent = endereco;
+            document.getElementById('origemCep').value = cep;
+            document.getElementById('origemDisplay').classList.remove('empty');
+            verificarBotaoCalcular();
+            console.log('✓ Origem definida:', endereco);
+        }
+
+        function definirDestino(cep, endereco) {
+            destinoSelecionado = { cep: cep, endereco: endereco };
+            document.getElementById('destinoText').textContent = endereco;
+            document.getElementById('destinoCep').value = cep;
+            document.getElementById('destinoDisplay').classList.remove('empty');
+            verificarBotaoCalcular();
+            console.log('✓ Destino definido:', endereco);
+        }
+
+        function verificarBotaoCalcular() {
+            var btn = document.getElementById('btnCalcularRota');
+            if (origemSelecionada && destinoSelecionado) {
+                btn.disabled = false;
+                btn.classList.remove('btn-light');
+                btn.classList.add('btn-warning');
+            } else {
+                btn.disabled = true;
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-light');
+            }
+        }
+
+        function limparSelecao() {
+            origemSelecionada = null;
+            destinoSelecionado = null;
+            document.getElementById('origemCep').value = '';
+            document.getElementById('origemText').textContent = 'Nenhuma origem selecionada';
+            document.getElementById('destinoCep').value = '';
+            document.getElementById('destinoText').textContent = 'Nenhum destino selecionado';
+            document.getElementById('origemDisplay').classList.add('empty');
+            document.getElementById('destinoDisplay').classList.add('empty');
+            verificarBotaoCalcular();
+            
+            if (originMarker) {
+                map.removeLayer(originMarker);
+                originMarker = null;
+            }
+            if (destinationMarker) {
+                map.removeLayer(destinationMarker);
+                destinationMarker = null;
+            }
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+                routePolyline = null;
+            }
+        }
+
+        // Funções de GPS e Navegação
+        function iniciarGPS() {
+            if (!navigator.geolocation) {
+                alert('Geolocalização não é suportada pelo seu navegador');
+                return;
+            }
+
+            if (isGPSActive) {
+                if (watchId) {
+                    navigator.geolocation.clearWatch(watchId);
+                    watchId = null;
+                }
+                isGPSActive = false;
+                document.getElementById('gpsStatus').className = 'gps-status gps-inactive';
+                document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-satellite-dish"></i> GPS Inativo';
+                document.getElementById('btnGpsText').textContent = 'Ativar GPS';
+                document.getElementById('positionInfo').style.display = 'none';
+                document.getElementById('speedDisplay').classList.remove('active');
+            } else {
+                document.getElementById('gpsStatus').className = 'gps-status gps-active';
+                document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-satellite-dish"></i> GPS Ativo - Buscando...';
+                
+                watchId = navigator.geolocation.watchPosition(
+                    function(position) {
+                        atualizarPosicaoUsuario(position);
+                    },
+                    function(error) {
+                        console.error('Erro GPS:', error);
+                        document.getElementById('gpsStatus').className = 'gps-status gps-inactive';
+                        document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro GPS';
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
+                    }
+                );
+                
+                isGPSActive = true;
+                document.getElementById('btnGpsText').textContent = 'Desativar GPS';
+                document.getElementById('positionInfo').style.display = 'block';
+                document.getElementById('speedDisplay').classList.add('active');
+            }
+        }
+
+        function atualizarPosicaoUsuario(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
+            const speed = position.coords.speed || 0;
+            
+            // Atualizar interface
+            document.getElementById('currentLat').textContent = lat.toFixed(6);
+            document.getElementById('currentLng').textContent = lng.toFixed(6);
+            document.getElementById('currentAccuracy').textContent = accuracy.toFixed(0) + ' m';
+            document.getElementById('currentSpeed').textContent = (speed * 3.6).toFixed(1) + ' km/h';
+            document.getElementById('speedValue').textContent = (speed * 3.6).toFixed(0);
+            
+            document.getElementById('gpsStatus').innerHTML = 
+                '<i class="fas fa-satellite-dish"></i> GPS Ativo - Precisão: ' + accuracy.toFixed(0) + 'm';
+            
+            // Atualizar marcador no mapa
+            if (!userMarker) {
+                userMarker = L.marker([lat, lng]).addTo(map)
+                    .bindPopup('<b>Sua Posição</b><br>GPS Ativo');
+                
+                userCircle = L.circle([lat, lng], {
+                    radius: accuracy,
+                    color: '#007bff',
+                    fillColor: '#007bff',
+                    fillOpacity: 0.1
+                }).addTo(map);
+            } else {
+                userMarker.setLatLng([lat, lng]);
+                userCircle.setLatLng([lat, lng]).setRadius(accuracy);
+            }
+            
+            // Enviar posição via WebSocket
+            if (stompClient && stompClient.connected) {
+                const posicaoData = {
+                    latitude: lat,
+                    longitude: lng,
+                    accuracy: accuracy,
+                    speed: speed
+                };
+                stompClient.send("/app/gps.posicao", {}, JSON.stringify(posicaoData));
+            }
+            
+            // Centralizar no usuário se estiver navegando
+            if (isNavigating) {
+                map.setView([lat, lng], 16);
+            }
+            
+            lastPosition = { lat, lng };
+            velocidadeAtual = speed * 3.6;
+        }
+
+        function centralizarNoUsuario() {
+            if (lastPosition) {
+                map.setView([lastPosition.lat, lastPosition.lng], 16);
+            } else {
+                alert('GPS não está ativo ou posição não disponível');
+            }
+        }
+
+        function iniciarNavegacao() {
+            if (!rotaData) {
+                alert('Calcule uma rota primeiro!');
+                return;
+            }
+            
+            if (!isGPSActive) {
+                alert('Ative o GPS para iniciar a navegação!');
+                return;
+            }
+            
+            isNavigating = true;
+            document.getElementById('navigationPanel').classList.add('active');
+            document.getElementById('btnStartNav').innerHTML = '<i class="fas fa-pause"></i>';
+            document.getElementById('btnStartNav').setAttribute('onclick', 'pararNavegacao()');
+            document.getElementById('btnStartNav').title = 'Parar Navegação';
+            
+            if (stompClient && stompClient.connected) {
+                stompClient.send("/app/navegacao.iniciar", {}, "");
+            }
+            
+            console.log('🚗 Navegação iniciada!');
+        }
+
+        function pararNavegacao() {
+            isNavigating = false;
+            document.getElementById('navigationPanel').classList.remove('active');
+            document.getElementById('btnStartNav').innerHTML = '<i class="fas fa-play"></i>';
+            document.getElementById('btnStartNav').setAttribute('onclick', 'iniciarNavegacao()');
+            document.getElementById('btnStartNav').title = 'Iniciar Navegação';
+            
+            if (stompClient && stompClient.connected) {
+                stompClient.send("/app/navegacao.parar", {}, "");
+            }
+            
+            console.log('🛑 Navegação parada!');
+        }
+
+        function centralizarRota() {
+            if (rotaData && routePolyline) {
+                map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+            } else {
+                alert('Calcule uma rota primeiro!');
+            }
+        }
+
+        function toggleVoz() {
+            isVoiceEnabled = !isVoiceEnabled;
+            const btn = document.getElementById('btnVoice');
+            if (isVoiceEnabled) {
+                btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                btn.title = 'Desativar Voz';
+                console.log('🔊 Voz ativada');
+            } else {
+                btn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                btn.title = 'Ativar Voz';
+                console.log('🔇 Voz desativada');
+            }
+        }
+
+        // Funções para processamento de rota
+        function processarRota() {
+            if (rotaData && rotaData.instrucoes) {
+                instrucoes = rotaData.instrucoes;
+                console.log('Rota processada com', instrucoes.length, 'instruções');
+                
+                // Atualizar instrução atual
+                if (instrucoes.length > 0) {
+                    atualizarInstrucaoAtual({instrucao: instrucoes[0].instrucao, index: 0});
+                }
+            }
+        }
+
+        function desenharRotaCompleta() {
+            if (!rotaData || !rotaData.dadosRotaCompleta) {
+                console.log('Dados da rota não disponíveis');
+                return;
+            }
+
+            try {
+                const geometry = rotaData.dadosRotaCompleta.routes[0].geometry;
+                const coordinates = decodePolyline(geometry);
+                
+                // Converter coordenadas para formato Leaflet [lat, lng]
+                const latLngs = coordinates.map(coord => [coord[1], coord[0]]);
+                
+                // Remover rota anterior se existir
+                if (routePolyline) {
+                    map.removeLayer(routePolyline);
+                }
+                
+                // Desenhar nova rota
+                routePolyline = L.polyline(latLngs, {
+                    color: '#007bff',
+                    weight: 6,
+                    opacity: 0.8,
+                    lineJoin: 'round'
+                }).addTo(map);
+                
+                // Ajustar mapa para mostrar toda a rota
+                map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+                
+                console.log('✓ Rota desenhada no mapa com', latLngs.length, 'pontos');
+                
+            } catch (error) {
+                console.error('Erro ao desenhar rota:', error);
+            }
+        }
+
+        // Decodificar polyline do OSRM
+        function decodePolyline(str, precision) {
+            precision = precision || 5;
+            var factor = Math.pow(10, precision);
+            var coordinates = [];
+            var index = 0, lat = 0, lng = 0;
+            
+            while (index < str.length) {
+                var b, shift = 0, result = 0;
+                do {
+                    b = str.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                var dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += dlat;
+                
+                shift = 0;
+                result = 0;
+                do {
+                    b = str.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                var dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lng += dlng;
+                
+                coordinates.push([lng / factor, lat / factor]);
+            }
+            
+            return coordinates;
+        }
+
+        function atualizarInstrucaoAtual(instrucaoData) {
+            document.getElementById('nextInstructionText').textContent = instrucaoData.instrucao;
+            currentInstructionIndex = instrucaoData.index;
+            
+            // Atualizar cards de instrução
+            document.querySelectorAll('.instruction-card').forEach((card, index) => {
+                card.classList.remove('active', 'passed');
+                if (index === currentInstructionIndex) {
+                    card.classList.add('active');
+                } else if (index < currentInstructionIndex) {
+                    card.classList.add('passed');
+                }
+            });
+            
+            // Atualizar ETA
+            if (rotaData && rotaData.instrucoes) {
+                const instrucaoAtual = rotaData.instrucoes[currentInstructionIndex];
+                if (instrucaoAtual && instrucaoAtual.distancia) {
+                    document.getElementById('nextDistance').textContent = 
+                        'Em ' + Math.round(instrucaoAtual.distancia) + ' metros';
+                }
+            }
+            
+            // Sintetizar voz se habilitado
+            if (isVoiceEnabled && 'speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(instrucaoData.instrucao);
+                utterance.lang = 'pt-BR';
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        function mostrarAlertaManobra(alerta) {
+            const alertDiv = document.getElementById('maneuverAlert');
+            const alertText = document.getElementById('alertText');
+            
+            alertText.textContent = alerta.mensagem;
+            alertDiv.classList.add('show');
+            
+            // Sintetizar alerta de voz
+            if (isVoiceEnabled && 'speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(alerta.mensagem);
+                utterance.lang = 'pt-BR';
+                speechSynthesis.speak(utterance);
+            }
+            
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+            }, 5000);
+        }
+
+        function mostrarChegada(mensagem) {
+            alert(mensagem);
+            pararNavegacao();
+            
+            if (isVoiceEnabled && 'speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance("Você chegou ao destino!");
+                utterance.lang = 'pt-BR';
+                speechSynthesis.speak(utterance);
+            }
+        }
     </script>
 </body>
 </html>
