@@ -2,6 +2,7 @@ package com.cwcdev.ia.controller;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
@@ -11,7 +12,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+
 import com.cwcdev.ia.model.Endereco;
+import com.cwcdev.ia.model.InstrucaoNavegacao;
 import com.cwcdev.ia.model.Rota;
 import com.cwcdev.ia.service.NavegacaoService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -231,7 +234,8 @@ public class NavegacaoController {
             if (rotaAtual != null && navegacaoAtiva && 
                 instrucaoAtualIndex < rotaAtual.getInstrucoes().size()) {
                 
-                var instrucaoAtual = rotaAtual.getInstrucoes().get(instrucaoAtualIndex);
+                // CORREÇÃO: usando tipo explícito em vez de var
+                InstrucaoNavegacao instrucaoAtual = rotaAtual.getInstrucoes().get(instrucaoAtualIndex);
                 
                 if (instrucaoAtual.getLatitude() != null && instrucaoAtual.getLongitude() != null) {
                     double distancia = calcularDistancia(lat, lng, 
@@ -308,14 +312,19 @@ public class NavegacaoController {
     // Métodos auxiliares
     
     private void adicionarAoHistorico(Endereco endereco) {
-        // Evitar duplicatas
-        boolean existe = historicoGeral.stream()
-            .anyMatch(e -> e.getCep() != null && e.getCep().equals(endereco.getCep()));
+        // Evitar duplicatas - usando loop tradicional para Java 1.8
+        boolean existe = false;
+        for (Endereco e : historicoGeral) {
+            if (e.getCep() != null && e.getCep().equals(endereco.getCep())) {
+                existe = true;
+                break;
+            }
+        }
         
         if (!existe) {
             historicoGeral.add(0, endereco);
             if (historicoGeral.size() > 10) {
-                historicoGeral = historicoGeral.subList(0, 10);
+                historicoGeral = new ArrayList<>(historicoGeral.subList(0, 10));
             }
         }
     }
