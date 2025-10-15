@@ -51,6 +51,10 @@
             padding-left: 1rem;
             margin-bottom: 0.5rem;
         }
+        .input-error {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+        }
     </style>
 </head>
 <body>
@@ -106,7 +110,7 @@
                         <div class="tab-content" id="myTabContent">
                             <!-- Tab Por CEP -->
                             <div class="tab-pane fade show active" id="cep" role="tabpanel">
-                                <form th:action="@{/buscar-cep}" method="post">
+                                <form th:action="@{/buscar-cep}" method="post" id="formCep">
                                     <div class="mb-3">
                                         <label for="cep" class="form-label">
                                             <strong>Digite o CEP:</strong>
@@ -133,7 +137,7 @@
 
                             <!-- Tab Por Endereço -->
                             <div class="tab-pane fade" id="endereco" role="tabpanel">
-                                <form th:action="@{/buscar-endereco}" method="post">
+                                <form th:action="@{/buscar-endereco}" method="post" id="formEndereco">
                                     <div class="row">
                                         <div class="col-md-4 mb-3">
                                             <label for="uf" class="form-label">UF</label>
@@ -173,14 +177,27 @@
                                             <label for="localidade" class="form-label">Cidade</label>
                                             <input type="text" class="form-control" id="localidade" 
                                                    name="localidade" th:value="${localidadePesquisada}"
-                                                   placeholder="Nome da cidade" required>
+                                                   placeholder="Nome da cidade" 
+                                                   pattern="[a-zA-ZÀ-ÿ\s\-]+"
+                                                   title="Digite apenas letras e espaços"
+                                                   required>
                                         </div>
                                     </div>
                                     <div class="mb-3">
                                         <label for="logradouro" class="form-label">Logradouro</label>
                                         <input type="text" class="form-control" id="logradouro" 
                                                name="logradouro" th:value="${logradouroPesquisado}"
-                                               placeholder="Nome da rua, avenida, etc." required>
+                                               placeholder="Nome da rua, avenida, etc. (sem números)" 
+                                               pattern="[a-zA-ZÀ-ÿ\s\.\-]+"
+                                               title="Digite apenas o nome do logradouro, sem números"
+                                               required>
+                                        <div class="form-text text-warning">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            Digite apenas o nome do logradouro sem números (ex: "Avenida Paulista")
+                                        </div>
+                                        <div class="invalid-feedback" id="logradouroError">
+                                            Por favor, digite apenas o nome do logradouro sem números.
+                                        </div>
                                     </div>
                                     <button type="submit" class="btn btn-primary w-100">
                                         <i class="bi bi-geo-alt"></i> Buscar por Endereço
@@ -213,7 +230,7 @@
                             <div class="col-6">
                                 <h6><i class="bi bi-geo-alt text-success"></i> Por Endereço</h6>
                                 <small class="text-muted">
-                                    Informe UF, cidade e logradouro
+                                    Informe UF, cidade e logradouro (sem números)
                                 </small>
                             </div>
                         </div>
@@ -229,15 +246,18 @@
                         <h5 class="card-title mb-0 text-white">
                             <i class="bi" 
                                th:classappend="${endereco.erro} ? 'bi-exclamation-triangle' : 'bi-check-circle'"></i>
-                            <span th:text="${endereco.erro} ? 'CEP não encontrado' : 'Endereço Encontrado'"></span>
+                            <span th:text="${endereco.erro} ? 'Endereço não encontrado' : 'Endereço Encontrado'"></span>
                         </h5>
                     </div>
                     <div class="card-body" th:classappend="${endereco.erro} ? 'error-card' : 'endereco-card'">
                         <div th:if="${endereco.erro}">
                             <div class="text-center text-danger mb-3">
                                 <i class="bi bi-exclamation-triangle" style="font-size: 3rem;"></i>
-                                <h5>CEP não encontrado!</h5>
-                                <p class="mb-0">Verifique se o CEP ou endereço estão corretos.</p>
+                                <h5>Endereço não encontrado!</h5>
+                                <p class="mb-0">Verifique se os dados estão corretos.</p>
+                                <small class="text-muted">
+                                    Dica: Use apenas o nome do logradouro sem números
+                                </small>
                             </div>
                         </div>
                         
@@ -346,6 +366,64 @@
                 value = value.substring(0, 5) + '-' + value.substring(5, 8);
             }
             e.target.value = value;
+        });
+
+        // Validação do campo logradouro - remove números em tempo real
+        document.getElementById('logradouro')?.addEventListener('input', function(e) {
+            let value = e.target.value;
+            // Remove números e caracteres especiais, mantém apenas letras, espaços, hífen e ponto
+            value = value.replace(/[^a-zA-ZÀ-ÿ\s\.\-]/g, '');
+            // Remove múltiplos espaços
+            value = value.replace(/\s+/g, ' ').trim();
+            e.target.value = value;
+            
+            // Validação visual
+            if (/[0-9]/.test(value)) {
+                this.classList.add('input-error');
+            } else {
+                this.classList.remove('input-error');
+            }
+        });
+
+        // Validação do campo cidade
+        document.getElementById('localidade')?.addEventListener('input', function(e) {
+            let value = e.target.value;
+            // Remove números e caracteres especiais
+            value = value.replace(/[^a-zA-ZÀ-ÿ\s\-]/g, '');
+            value = value.replace(/\s+/g, ' ').trim();
+            e.target.value = value;
+        });
+
+        // Validação do formulário de endereço
+        document.getElementById('formEndereco')?.addEventListener('submit', function(e) {
+            const logradouro = document.getElementById('logradouro').value;
+            const localidade = document.getElementById('localidade').value;
+            const uf = document.getElementById('uf').value;
+            
+            let isValid = true;
+            
+            // Verifica se há números no logradouro
+            if (/[0-9]/.test(logradouro)) {
+                document.getElementById('logradouro').classList.add('input-error');
+                document.getElementById('logradouroError').style.display = 'block';
+                isValid = false;
+            } else {
+                document.getElementById('logradouro').classList.remove('input-error');
+                document.getElementById('logradouroError').style.display = 'none';
+            }
+            
+            // Verifica UF selecionada
+            if (!uf) {
+                document.getElementById('uf').classList.add('input-error');
+                isValid = false;
+            } else {
+                document.getElementById('uf').classList.remove('input-error');
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+                alert('Por favor, corrija os erros no formulário:\n- Digite apenas o nome do logradouro sem números\n- Selecione a UF');
+            }
         });
 
         // Preencher select baseado na busca anterior

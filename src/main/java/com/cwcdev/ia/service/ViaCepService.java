@@ -4,9 +4,7 @@ import com.cwcdev.ia.model.Endereco;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.client.HttpServerErrorException;
 
 @Service
 public class ViaCepService {
@@ -15,14 +13,12 @@ public class ViaCepService {
     
     private final RestTemplate restTemplate;
 
-    // Injeção via construtor (recomendado)
     @Autowired
     public ViaCepService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
 
     public Endereco buscarEnderecoPorCep(String cep) {
-        // Remove caracteres não numéricos
         cep = cep.replaceAll("[^0-9]", "");
         
         if (cep.length() != 8) {
@@ -37,20 +33,13 @@ public class ViaCepService {
             ResponseEntity<Endereco> response = restTemplate.getForEntity(url, Endereco.class);
             Endereco endereco = response.getBody();
             
-            // Verifica se o CEP não foi encontrado
             if (endereco != null && endereco.getCep() == null) {
                 endereco.setErro(true);
             }
             
             return endereco;
             
-        } catch (HttpClientErrorException.NotFound e) {
-            // CEP não encontrado
-            Endereco enderecoErro = new Endereco();
-            enderecoErro.setErro(true);
-            return enderecoErro;
         } catch (Exception e) {
-            // Outros erros
             Endereco enderecoErro = new Endereco();
             enderecoErro.setErro(true);
             return enderecoErro;
@@ -59,28 +48,42 @@ public class ViaCepService {
 
     public Endereco buscarEnderecoPorLogradouro(String uf, String localidade, String logradouro) {
         try {
-            // Codifica os parâmetros para URL
-            String ufEncoded = java.net.URLEncoder.encode(uf, "UTF-8");
-            String localidadeEncoded = java.net.URLEncoder.encode(localidade, "UTF-8");
-            String logradouroEncoded = java.net.URLEncoder.encode(logradouro, "UTF-8");
+            uf = uf.trim().toUpperCase();
+            localidade = localidade.trim();
+            logradouro = logradouro.trim();
             
-            String url = String.format("%s/%s/%s/%s/json/", 
-                VIA_CEP_URL, ufEncoded, localidadeEncoded, logradouroEncoded);
+            // CORREÇÃO: Remove apenas caracteres especiais problemáticos, mantém números
+            // Mas remove números no início que podem causar problemas
+            logradouro = logradouro.replaceAll("[^a-zA-ZÀ-ÿ0-9\\s\\.\\-]", "");
+            logradouro = logradouro.replaceAll("^\\d+\\s*", ""); // Remove números no início
+            logradouro = logradouro.replaceAll("\\s+", " ").trim();
+            
+            if (logradouro.isEmpty()) {
+                Endereco enderecoErro = new Endereco();
+                enderecoErro.setErro(true);
+                return enderecoErro;
+            }
+            
+            String url = VIA_CEP_URL + uf + "/" + localidade + "/" + logradouro + "/json/";
+            
+            System.out.println("URL da busca: " + url);
             
             ResponseEntity<Endereco[]> response = restTemplate.getForEntity(url, Endereco[].class);
             
             Endereco[] enderecos = response.getBody();
-            if (enderecos != null && enderecos.length > 0) {
-                return enderecos[0]; // Retorna o primeiro endereço encontrado
+            
+            if (enderecos != null && enderecos.length > 0 && enderecos[0].getCep() != null) {
+                return enderecos[0];
             } else {
                 Endereco enderecoErro = new Endereco();
                 enderecoErro.setErro(true);
                 return enderecoErro;
             }
+                
         } catch (Exception e) {
+            System.err.println("Erro na busca por endereço: " + e.getMessage());
             Endereco enderecoErro = new Endereco();
             enderecoErro.setErro(true);
             return enderecoErro;
         }
-    }
-}
+    }}

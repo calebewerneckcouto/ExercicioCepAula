@@ -19,21 +19,25 @@ public class CepController {
     @Autowired
     private ViaCepService viaCepService;
 
-    
+    // Lista para manter o histórico (em aplicação real, use banco de dados)
+    private List<Endereco> historicoGeral = new ArrayList<>();
 
     @PostMapping("/buscar-cep")
     public String buscarPorCep(@RequestParam String cep, Model model) {
         Endereco endereco = viaCepService.buscarEnderecoPorCep(cep);
         
-       
-        List<Endereco> historico = new ArrayList<>();
+        // Adiciona ao histórico se não for erro
         if (!endereco.isErro()) {
-            historico.add(endereco);
+            historicoGeral.add(0, endereco); // Adiciona no início
+            // Mantém apenas os últimos 5 no histórico
+            if (historicoGeral.size() > 5) {
+                historicoGeral = historicoGeral.subList(0, 5);
+            }
         }
         
         model.addAttribute("endereco", endereco);
         model.addAttribute("cepPesquisado", cep);
-        model.addAttribute("historico", historico);
+        model.addAttribute("historico", historicoGeral);
         model.addAttribute("modoBusca", "cep");
         
         return "index";
@@ -48,16 +52,20 @@ public class CepController {
         
         Endereco endereco = viaCepService.buscarEnderecoPorLogradouro(uf, localidade, logradouro);
         
-        List<Endereco> historico = new ArrayList<>();
+        // Adiciona ao histórico se não for erro
         if (!endereco.isErro()) {
-            historico.add(endereco);
+            historicoGeral.add(0, endereco); // Adiciona no início
+            // Mantém apenas os últimos 5 no histórico
+            if (historicoGeral.size() > 5) {
+                historicoGeral = historicoGeral.subList(0, 5);
+            }
         }
         
         model.addAttribute("endereco", endereco);
         model.addAttribute("ufPesquisado", uf);
         model.addAttribute("localidadePesquisada", localidade);
         model.addAttribute("logradouroPesquisado", logradouro);
-        model.addAttribute("historico", historico);
+        model.addAttribute("historico", historicoGeral);
         model.addAttribute("modoBusca", "endereco");
         
         return "index";
@@ -65,8 +73,9 @@ public class CepController {
 
     @GetMapping("/limpar")
     public String limpar(Model model) {
+        historicoGeral.clear();
         model.addAttribute("endereco", new Endereco());
-        model.addAttribute("historico", new ArrayList<Endereco>());
+        model.addAttribute("historico", historicoGeral);
         return "index";
     }
 }
