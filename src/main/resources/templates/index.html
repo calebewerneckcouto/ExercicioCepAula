@@ -2,174 +2,440 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPS Navegação Avançada</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GPS Navegação Mobile</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow-x: hidden;
-        }
-        
-        .map-container {
-            height: 650px;
-            position: relative;
-            border-radius: 15px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            height: 100vh;
+            position: fixed;
+            width: 100%;
         }
         
-        .navigation-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-            backdrop-filter: blur(10px);
-            display: none;
+        #map {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
         }
         
-        .navigation-panel.active {
-            display: block;
-        }
-        
-        .search-container {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
+        /* Painel de busca compacto */
+        .search-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            right: 10px;
             z-index: 1000;
             background: white;
             border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .search-header {
+            padding: 12px 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .search-content {
             padding: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        
+        .quick-search {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        
+        .quick-search input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+        }
+        
+        .quick-search .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #667eea;
+            font-size: 18px;
+        }
+        
+        .location-type {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .location-type button {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .location-type button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .selected-locations {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .location-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .location-item .icon {
+            font-size: 20px;
+            min-width: 25px;
+        }
+        
+        .location-item .text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .location-item .clear {
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 18px;
         }
         
         .search-results {
-            max-height: 300px;
+            max-height: 40vh;
             overflow-y: auto;
-            margin-top: 10px;
+        }
+        
+        .result-item {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .result-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .result-item .name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .result-item .address {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        /* Painel de navegação */
+        .nav-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            padding: 15px;
             display: none;
         }
         
-        .search-result-item {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            transition: background-color 0.3s;
+        .nav-panel.active {
+            display: block;
         }
         
-        .search-result-item:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .search-result-item:last-child {
-            border-bottom: none;
-        }
-        
-        .next-instruction {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            font-size: 1.2rem;
-            font-weight: bold;
+        .nav-instruction {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
+            margin-bottom: 12px;
         }
         
-        .instruction-icon {
-            font-size: 2.5rem;
-            min-width: 50px;
-            text-align: center;
+        .nav-instruction .icon {
+            font-size: 36px;
+            color: #667eea;
+            min-width: 40px;
         }
         
-        .distance-badge {
-            background: rgba(255, 255, 255, 0.3);
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 1rem;
-            margin-top: 10px;
-            display: inline-block;
+        .nav-instruction .text {
+            flex: 1;
         }
         
-        .eta-info {
-            display: flex;
-            justify-content: space-around;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-        
-        .eta-item {
-            text-align: center;
-        }
-        
-        .eta-value {
-            font-size: 1.5rem;
+        .nav-instruction .distance {
+            font-size: 24px;
             font-weight: bold;
             color: #667eea;
         }
         
-        .eta-label {
-            font-size: 0.8rem;
-            color: #666;
+        .nav-stats {
+            display: flex;
+            gap: 10px;
+            justify-content: space-around;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 12px;
         }
         
+        .nav-stats .stat {
+            text-align: center;
+        }
+        
+        .nav-stats .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        /* Controles flutuantes otimizados */
         .floating-controls {
-            position: absolute;
+            position: fixed;
             bottom: 20px;
-            right: 20px;
+            right: 15px;
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
         
         .control-btn {
-            width: 50px;
-            height: 50px;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
             border: none;
             background: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 24px;
             cursor: pointer;
             transition: all 0.3s;
         }
         
-        .control-btn:hover {
-            transform: scale(1.1);
+        .control-btn:active {
+            transform: scale(0.95);
         }
         
         .control-btn.primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            width: 60px;
-            height: 60px;
+            width: 64px;
+            height: 64px;
         }
         
-        .pulse-marker {
-            width: 20px;
-            height: 20px;
+        .control-btn.danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        /* Toggle de busca */
+        .search-toggle {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 999;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
-            background: #007bff;
-            border: 3px solid white;
-            box-shadow: 0 0 0 rgba(0, 123, 255, 0.4);
-            animation: pulse 2s infinite;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            color: #667eea;
         }
         
+        /* Velocímetro */
+        .speed-display {
+            position: fixed;
+            bottom: 20px;
+            left: 15px;
+            z-index: 1000;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: none;
+        }
+        
+        .speed-display.active {
+            display: block;
+        }
+        
+        .speed-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .speed-unit {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* Alerta de manobra */
+        .maneuver-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            max-width: 90%;
+        }
+        
+        .maneuver-alert.show {
+            display: block;
+            animation: alertPulse 0.5s ease;
+        }
+        
+        .maneuver-alert .icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+        
+        .maneuver-alert .text {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        @keyframes alertPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
+        }
+        
+        /* GPS Status */
+        .gps-status {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 999;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .gps-status.active {
+            background: #28a745;
+            color: white;
+        }
+        
+        .gps-status.inactive {
+            background: #dc3545;
+            color: white;
+        }
+        
+        /* Histórico compacto */
+        .history-list {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .history-item:active {
+            background: #e9ecef;
+        }
+        
+        .history-item .name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .history-item .details {
+            color: #666;
+            font-size: 11px;
+        }
+        
+        /* Botões de ação rápida */
+        .quick-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .quick-actions button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .btn-calculate {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-recalculate {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .btn-clear {
+            background: #dc3545;
+            color: white;
+        }
+        
+        /* Animação de pulse para marcador */
         @keyframes pulse {
             0% {
                 box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
@@ -182,871 +448,270 @@
             }
         }
         
-        .maneuver-alert {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 2000;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 40px;
-            border-radius: 20px;
+        /* Loading */
+        .loading {
             text-align: center;
-            display: none;
-        }
-        
-        .maneuver-alert.show {
-            display: block;
-            animation: alertPulse 0.5s ease;
-        }
-        
-        .maneuver-alert .icon {
-            font-size: 5rem;
-            margin-bottom: 20px;
-        }
-        
-        .maneuver-alert .text {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-        
-        @keyframes alertPulse {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.1); }
-        }
-        
-        .speed-display {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            z-index: 1000;
-            background: white;
-            padding: 15px 25px;
-            border-radius: 50px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            display: none;
-        }
-        
-        .speed-display.active {
-            display: block;
-        }
-        
-        .speed-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #667eea;
-        }
-        
-        .speed-unit {
-            font-size: 1rem;
-            color: #666;
-        }
-        
-        .gps-status {
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            text-align: center;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        
-        .gps-active {
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            color: #155724;
-            border: 2px solid #28a745;
-        }
-        
-        .gps-inactive {
-            background: #f8d7da;
-            color: #721c24;
-            border: 2px solid #f5c6cb;
-        }
-        
-        .position-info {
-            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-            border-radius: 8px;
-            padding: 12px;
-            margin: 8px 0;
-            font-size: 0.9em;
-        }
-        
-        .history-item {
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            padding: 12px;
-            margin: 8px 0;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .history-item:hover {
-            background: #e9ecef;
-            transform: translateX(5px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .history-item .address {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 5px;
-        }
-        
-        .history-item .coords {
-            font-size: 0.85em;
-            color: #666;
-        }
-        
-        .history-item .actions {
-            display: flex;
-            gap: 5px;
-            margin-top: 8px;
-        }
-        
-        .history-item .btn-mini {
-            padding: 4px 12px;
-            font-size: 0.8rem;
-            border-radius: 15px;
-        }
-        
-        .route-selector {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             padding: 20px;
-            border-radius: 12px;
-            margin: 15px 0;
-        }
-        
-        .route-selector .selected-point {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 10px;
-            border-radius: 8px;
-            margin: 5px 0;
-        }
-        
-        .route-selector .selected-point.empty {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px dashed rgba(255, 255, 255, 0.5);
-        }
-        
-        .instruction-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
-            transition: all 0.3s;
-        }
-        
-        .instruction-card.active {
-            border: 3px solid #ffeb3b;
-            box-shadow: 0 0 20px rgba(255, 235, 59, 0.5);
-            transform: scale(1.02);
-        }
-        
-        .instruction-card.passed {
-            opacity: 0.5;
-            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
-        }
-        
-        .instruction-number {
-            background: white;
             color: #667eea;
-            border-radius: 50%;
-            width: 35px;
-            height: 35px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 10px;
-            font-weight: bold;
         }
         
-        .location-option {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
-            cursor: pointer;
-            transition: all 0.3s;
+        .loading i {
+            font-size: 32px;
+            animation: spin 1s linear infinite;
         }
         
-        .location-option:hover {
-            border-color: #667eea;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
         
-        .location-option.selected {
-            border-color: #667eea;
-            background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        /* Scrollbar customizada */
+        ::-webkit-scrollbar {
+            width: 6px;
         }
         
-        .route-line {
-            stroke: #007bff;
-            stroke-width: 6;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            fill: none;
-            opacity: 0.8;
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
         }
     </style>
 </head>
 <body>
-    <div class="container-fluid py-4">
-        <!-- Mensagens -->
-        <div th:if="${erroRota}" class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-triangle"></i> 
-            <span th:text="${erroRota}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <!-- Mapa (sempre visível) -->
+    <div id="map"></div>
+    
+    <!-- GPS Status -->
+    <div id="gpsStatus" class="gps-status inactive">
+        <i class="fas fa-satellite-dish"></i> GPS OFF
+    </div>
+    
+    <!-- Toggle de Busca -->
+    <div class="search-toggle" onclick="toggleSearchPanel()">
+        <i class="fas fa-search"></i>
+    </div>
+    
+    <!-- Painel de Busca -->
+    <div id="searchPanel" class="search-panel" style="display: none;">
+        <div class="search-header">
+            <h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> Buscar Local</h6>
+            <i class="fas fa-times" onclick="toggleSearchPanel()" style="cursor: pointer;"></i>
         </div>
-
-        <div th:if="${sucessoRota}" class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle"></i> 
-            <span th:text="${sucessoRota}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-4">
-                <div class="card shadow-lg">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0"><i class="fas fa-route"></i> Navegação GPS</h4>
-                    </div>
-                    <div class="card-body">
-                        <!-- Status do GPS -->
-                        <div id="gpsStatus" class="gps-status gps-inactive">
-                            <i class="fas fa-satellite-dish"></i> GPS Inativo
-                        </div>
-
-                        <!-- Informações de Posição -->
-                        <div id="positionInfo" class="position-info" style="display: none;">
-                            <div class="row">
-                                <div class="col-6">
-                                    <small><strong>Latitude:</strong></small>
-                                    <div id="currentLat">-</div>
-                                </div>
-                                <div class="col-6">
-                                    <small><strong>Longitude:</strong></small>
-                                    <div id="currentLng">-</div>
-                                </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-6">
-                                    <small><strong>Precisão:</strong></small>
-                                    <div id="currentAccuracy">- m</div>
-                                </div>
-                                <div class="col-6">
-                                    <small><strong>Velocidade:</strong></small>
-                                    <div id="currentSpeed">- km/h</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Form para calcular rota -->
-                        <div class="route-selector">
-                            <h6 class="mb-3"><i class="fas fa-map-marked-alt"></i> Calcular Rota</h6>
-                            
-                            <form th:action="@{/calcular-rota}" method="post" id="formRota">
-                                <div class="selected-point" id="origemDisplay">
-                                    <strong>📍 Origem:</strong>
-                                    <div id="origemText" class="mt-1">Nenhuma origem selecionada</div>
-                                    <input type="hidden" id="origemCep" name="origemCep" value="">
-                                </div>
-                                
-                                <div class="selected-point mt-2" id="destinoDisplay">
-                                    <strong>🏁 Destino:</strong>
-                                    <div id="destinoText" class="mt-1">Nenhum destino selecionado</div>
-                                    <input type="hidden" id="destinoCep" name="destinoCep" value="">
-                                </div>
-                                
-                                <button type="submit" class="btn btn-light w-100 mt-3" id="btnCalcularRota" disabled>
-                                    <i class="fas fa-route"></i> Calcular Rota
-                                </button>
-                            </form>
-                            
-                            <button class="btn btn-outline-light btn-sm w-100 mt-2" onclick="limparSelecao()">
-                                <i class="fas fa-times"></i> Limpar Seleção
-                            </button>
-                        </div>
-
-                        <!-- Histórico -->
-                        <div class="mt-4">
-                            <h6><i class="fas fa-history"></i> Locais Salvos</h6>
-                            <div id="historicoContainer">
-                                <!-- Corrigido: usando data attributes em vez de onclick com Thymeleaf -->
-                                <div th:each="endereco : ${historico}" class="history-item" 
-                                     th:data-cep="${endereco.cep}" 
-                                     th:data-endereco="${endereco.logradouro} + ', ' + ${endereco.localidade}">
-                                    <div class="address" th:text="${endereco.logradouro}">Endereço</div>
-                                    <div class="coords">
-                                        <span th:text="${endereco.localidade} + ' - ' + ${endereco.uf}">Cidade</span> •
-                                        <span th:text="${endereco.cep}">CEP</span>
-                                    </div>
-                                    <div class="actions">
-                                        <button class="btn btn-success btn-mini btn-origem">
-                                            📍 Origem
-                                        </button>
-                                        <button class="btn btn-danger btn-mini btn-destino">
-                                            🏁 Destino
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div th:if="${historico == null || historico.empty}" class="text-muted text-center py-3">
-                                <i class="fas fa-inbox fa-2x mb-2"></i>
-                                <p class="mb-0">Nenhum local salvo</p>
-                                <small>Busque endereços para salvá-los</small>
-                            </div>
-                            
-                            <a th:href="@{/limpar}" class="btn btn-sm btn-outline-danger mt-2 w-100">
-                                <i class="fas fa-trash"></i> Limpar Histórico
-                            </a>
-                        </div>
-                    </div>
+        <div class="search-content">
+            <!-- Busca Rápida -->
+            <div class="quick-search">
+                <input type="text" id="inputBusca" placeholder="Digite endereço, CEP ou coordenadas..." autocomplete="off">
+                <i class="fas fa-search search-icon"></i>
+            </div>
+            
+            <!-- Tipo de Localização -->
+            <div class="location-type">
+                <button id="btnOrigem" onclick="setLocationMode('origem')">
+                    <i class="fas fa-circle"></i> Origem
+                </button>
+                <button id="btnDestino" onclick="setLocationMode('destino')">
+                    <i class="fas fa-flag-checkered"></i> Destino
+                </button>
+            </div>
+            
+            <!-- Locais Selecionados -->
+            <div class="selected-locations">
+                <div class="location-item" id="origemDisplay">
+                    <span class="icon">📍</span>
+                    <span class="text" id="origemText">Nenhuma origem</span>
+                    <i class="fas fa-times-circle clear" onclick="clearOrigem()" style="display: none;"></i>
                 </div>
-
-                <!-- Instruções -->
-                <div th:if="${rota != null}" class="card shadow-lg mt-3">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0"><i class="fas fa-list-ol"></i> Instruções de Navegação</h5>
-                    </div>
-                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                        <!-- Corrigido: removendo atributos problemáticos do Thymeleaf -->
-                        <div th:each="instrucao, stat : ${rota.instrucoes}" 
-                             class="instruction-card" 
-                             th:attr="data-index=${stat.index}">
-                            <div class="d-flex align-items-center">
-                                <span class="instruction-number" th:text="${stat.index + 1}">1</span>
-                                <div class="flex-grow-1">
-                                    <strong th:text="${instrucao.instrucao}">Instrução</strong>
-                                    <br>
-                                    <small th:if="${instrucao.distancia > 0}">
-                                        <span th:text="${#numbers.formatDecimal(instrucao.distancia, 0, 0)} + ' m'">Distância</span>
-                                    </small>
-                                </div>
-                            </div>
+                <div class="location-item" id="destinoDisplay">
+                    <span class="icon">🏁</span>
+                    <span class="text" id="destinoText">Nenhum destino</span>
+                    <i class="fas fa-times-circle clear" onclick="clearDestino()" style="display: none;"></i>
+                </div>
+            </div>
+            
+            <!-- Resultados da Busca -->
+            <div id="searchResults" class="search-results"></div>
+            
+            <!-- Histórico -->
+            <div th:if="${historico != null && !historico.empty}">
+                <h6 class="mt-3 mb-2"><i class="fas fa-history"></i> Recentes</h6>
+                <div class="history-list">
+                    <div th:each="endereco : ${historico}" class="history-item" 
+                         th:data-cep="${endereco.cep}" 
+                         th:data-endereco="${endereco.logradouro} + ', ' + ${endereco.localidade}"
+                         onclick="selectFromHistory(this)">
+                        <div class="name" th:text="${endereco.logradouro}">Endereço</div>
+                        <div class="details">
+                            <span th:text="${endereco.localidade} + ' - ' + ${endereco.uf}">Cidade</span> • 
+                            <span th:text="${endereco.cep}">CEP</span>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Mapa Principal -->
-            <div class="col-md-8">
-                <div class="card shadow-lg">
-                    <div class="card-header bg-dark text-white">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="fas fa-map"></i> Navegação em Tempo Real</h5>
-                            <button class="btn btn-sm btn-light" onclick="iniciarGPS()">
-                                <i class="fas fa-satellite"></i> <span id="btnGpsText">Ativar GPS</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body p-0 position-relative">
-                        <!-- Busca Unificada -->
-                        <div class="search-container">
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="inputBusca" 
-                                       placeholder="Digite CEP, número, endereço ou coordenadas...">
-                                <button class="btn btn-primary" onclick="buscarEndereco()">
-                                    <i class="fas fa-search"></i> Buscar
-                                </button>
-                            </div>
-                            <div class="search-results" id="searchResults"></div>
-                        </div>
-
-                        <div id="map" class="map-container"></div>
-                        
-                        <!-- Painel de Navegação -->
-                        <div id="navigationPanel" class="navigation-panel">
-                            <div class="next-instruction">
-                                <div class="instruction-icon" id="nextIcon">
-                                    <i class="fas fa-arrow-up"></i>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div id="nextInstructionText">Iniciando navegação...</div>
-                                    <div class="distance-badge" id="nextDistance">Preparando...</div>
-                                </div>
-                            </div>
-                            <div class="eta-info">
-                                <div class="eta-item">
-                                    <div class="eta-value" id="etaTime">--:--</div>
-                                    <div class="eta-label">Chegada</div>
-                                </div>
-                                <div class="eta-item">
-                                    <div class="eta-value" id="remainingDistance">-- km</div>
-                                    <div class="eta-label">Restante</div>
-                                </div>
-                                <div class="eta-item">
-                                    <div class="eta-value" id="remainingTime">-- min</div>
-                                    <div class="eta-label">Tempo</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Velocímetro -->
-                        <div id="speedDisplay" class="speed-display">
-                            <span class="speed-value" id="speedValue">0</span>
-                            <span class="speed-unit">km/h</span>
-                        </div>
-
-                        <!-- Alerta de Manobra -->
-                        <div id="maneuverAlert" class="maneuver-alert">
-                            <div class="icon" id="alertIcon">
-                                <i class="fas fa-arrow-right"></i>
-                            </div>
-                            <div class="text" id="alertText">Vire à direita</div>
-                        </div>
-
-                        <!-- Controles Flutuantes -->
-                        <div class="floating-controls">
-                            <button class="control-btn primary" id="btnStartNav" onclick="iniciarNavegacao()" title="Iniciar Navegação">
-                                <i class="fas fa-play"></i>
-                            </button>
-                            <button class="control-btn" onclick="centralizarNoUsuario()" title="Minha Posição">
-                                <i class="fas fa-crosshairs"></i>
-                            </button>
-                            <button class="control-btn" onclick="centralizarRota()" title="Ver Rota">
-                                <i class="fas fa-route"></i>
-                            </button>
-                            <button class="control-btn" id="btnVoice" onclick="toggleVoz()" title="Voz">
-                                <i class="fas fa-volume-up"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Informações da Rota -->
-                <div th:if="${rota != null}" class="card shadow-lg mt-3">
-                    <div class="card-body">
-                        <div class="row text-center">
-                            <div class="col-4">
-                                <h3 class="text-primary">
-                                    <span th:text="${#numbers.formatDecimal(rota.distancia/1000, 1, 2)}"></span> km
-                                </h3>
-                                <small class="text-muted">Distância Total</small>
-                            </div>
-                            <div class="col-4">
-                                <h3 class="text-success">
-                                    <span th:text="${#numbers.formatDecimal(rota.duracao/60, 1, 0)}"></span> min
-                                </h3>
-                                <small class="text-muted">Tempo Estimado</small>
-                            </div>
-                            <div class="col-4">
-                                <h3 class="text-info" th:text="${rota.instrucoes.size()}">0</h3>
-                                <small class="text-muted">Instruções</small>
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="row">
-                            <div class="col-6">
-                                <strong><i class="fas fa-play-circle text-success"></i> Origem:</strong><br>
-                                <span th:text="${rota.origem.logradouro} + ', ' + ${rota.origem.localidade}">Origem</span>
-                            </div>
-                            <div class="col-6">
-                                <strong><i class="fas fa-flag-checkered text-danger"></i> Destino:</strong><br>
-                                <span th:text="${rota.destino.logradouro} + ', ' + ${rota.destino.localidade}">Destino</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            
+            <!-- Ações Rápidas -->
+            <div class="quick-actions">
+                <button class="btn-calculate" onclick="calcularRota()" id="btnCalcular" disabled>
+                    <i class="fas fa-route"></i> Calcular
+                </button>
+                <button class="btn-clear" onclick="limparTudo()">
+                    <i class="fas fa-trash"></i> Limpar
+                </button>
             </div>
         </div>
+    </div>
+    
+    <!-- Painel de Navegação -->
+    <div id="navPanel" class="nav-panel">
+        <div class="nav-instruction">
+            <div class="icon" id="navIcon">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="text">
+                <div id="navText" style="font-size: 14px; font-weight: 600;">Iniciando navegação...</div>
+            </div>
+            <div class="distance" id="navDistance">--</div>
+        </div>
+        <div class="nav-stats">
+            <div class="stat">
+                <div class="value" id="etaTime">--:--</div>
+                <div>Chegada</div>
+            </div>
+            <div class="stat">
+                <div class="value" id="remainingDistance">--</div>
+                <div>Distância</div>
+            </div>
+            <div class="stat">
+                <div class="value" id="remainingTime">--</div>
+                <div>Tempo</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Velocímetro -->
+    <div id="speedDisplay" class="speed-display">
+        <span class="speed-value" id="speedValue">0</span>
+        <span class="speed-unit">km/h</span>
+    </div>
+    
+    <!-- Alerta de Manobra -->
+    <div id="maneuverAlert" class="maneuver-alert">
+        <div class="icon" id="alertIcon">
+            <i class="fas fa-arrow-right"></i>
+        </div>
+        <div class="text" id="alertText">Vire à direita</div>
+    </div>
+    
+    <!-- Controles Flutuantes -->
+    <div class="floating-controls">
+        <button class="control-btn primary" id="btnNav" onclick="toggleNavigation()" title="Navegação">
+            <i class="fas fa-play"></i>
+        </button>
+        <button class="control-btn" onclick="recalcularRota()" id="btnRecalc" title="Recalcular" style="display: none;">
+            <i class="fas fa-redo"></i>
+        </button>
+        <button class="control-btn" onclick="centralizarUsuario()" title="Minha Posição">
+            <i class="fas fa-crosshairs"></i>
+        </button>
+        <button class="control-btn" onclick="iniciarGPS()" id="btnGPS" title="GPS">
+            <i class="fas fa-satellite"></i>
+        </button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.0/dist/sockjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     
     <script th:inline="javascript">
+        // Variáveis globais
         var map;
-        var routeLayer = null;
+        var userMarker = null;
         var originMarker = null;
         var destinationMarker = null;
-        var userMarker = null;
-        var userCircle = null;
+        var routePolyline = null;
         var watchId = null;
-        var currentInstructionIndex = 0;
         var isGPSActive = false;
         var isNavigating = false;
-        var isVoiceEnabled = true;
+        var locationMode = 'origem'; // 'origem' ou 'destino'
+        var origemData = null;
+        var destinoData = null;
         var rotaData = /*[[${rota}]]*/ null;
-        var lastPosition = null;
-        var velocidadeAtual = 0;
-        var instrucoes = [];
-        var routeCoordinates = [];
-        var origemSelecionada = null;
-        var destinoSelecionado = null;
-        var stompClient = null;
-        var routePolyline = null;
+        var currentPosition = null;
+        var searchTimeout = null;
 
+        // Inicialização
         window.onload = function() {
             inicializarMapa();
-            conectarWebSocket();
-            configurarEventListeners();
+            configurarEventos();
             
             if (rotaData) {
                 processarRota();
-                desenharRotaCompleta();
+                mostrarBotaoRecalcular();
             }
+            
+            // Ativar GPS automaticamente
+            setTimeout(() => iniciarGPS(), 1000);
         };
 
-        function configurarEventListeners() {
-            // Event listeners para busca
-            document.getElementById('inputBusca').addEventListener('input', function(e) {
-                if (e.target.value.length >= 3) {
-                    buscarEnderecoAutocomplete(e.target.value);
-                } else {
-                    document.getElementById('searchResults').style.display = 'none';
-                }
-            });
-            
-            document.getElementById('inputBusca').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    buscarEndereco();
-                }
-            });
-            
-            // Prevenir submit duplo do formulário
-            document.getElementById('formRota').addEventListener('submit', function(e) {
-                const btn = document.getElementById('btnCalcularRota');
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculando...';
-            });
-
-            // Event listeners para histórico (corrigido)
-            document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('btn-origem')) {
-                    const historyItem = e.target.closest('.history-item');
-                    const cep = historyItem.getAttribute('data-cep');
-                    const endereco = historyItem.getAttribute('data-endereco');
-                    definirOrigem(cep, endereco);
-                }
-                
-                if (e.target.classList.contains('btn-destino')) {
-                    const historyItem = e.target.closest('.history-item');
-                    const cep = historyItem.getAttribute('data-cep');
-                    const endereco = historyItem.getAttribute('data-endereco');
-                    definirDestino(cep, endereco);
-                }
-            });
-        }
-
-        function conectarWebSocket() {
-            const socket = new SockJS('/ws-gps');
-            stompClient = Stomp.over(socket);
-            
-            stompClient.connect({}, function(frame) {
-                console.log('Conectado ao WebSocket: ' + frame);
-                
-                // Inscrever nos tópicos
-                stompClient.subscribe('/topic/instrucoes', function(message) {
-                    const instrucao = JSON.parse(message.body);
-                    atualizarInstrucaoAtual(instrucao);
-                });
-                
-                stompClient.subscribe('/topic/alerta', function(message) {
-                    const alerta = JSON.parse(message.body);
-                    mostrarAlertaManobra(alerta);
-                });
-                
-                stompClient.subscribe('/topic/chegada', function(message) {
-                    mostrarChegada(message.body);
-                });
-                
-            }, function(error) {
-                console.error('Erro WebSocket:', error);
-                setTimeout(conectarWebSocket, 5000);
-            });
-        }
-
         function inicializarMapa() {
-            map = L.map('map').setView([-15.7797, -47.9297], 13);
+            map = L.map('map', {
+                zoomControl: false
+            }).setView([-15.7797, -47.9297], 13);
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap',
                 maxZoom: 19
             }).addTo(map);
-        }
-
-        // Função de busca unificada
-        function buscarEndereco() {
-            const query = document.getElementById('inputBusca').value.trim();
-            if (!query) return;
-
-            const resultsDiv = document.getElementById('searchResults');
-            resultsDiv.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
-            resultsDiv.style.display = 'block';
-
-            // Verifica se é coordenada
-            if (/^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(query)) {
-                const [lat, lng] = query.split(',').map(coord => parseFloat(coord.trim()));
-                mostrarResultadoCoordenada(lat, lng, query);
-                return;
-            }
-
-            // Verifica se é apenas número (buscar por número da casa)
-            if (/^\d+$/.test(query)) {
-                buscarPorNumero(query);
-                return;
-            }
-
-            // Busca por CEP ou endereço
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=10`)
-                .then(response => response.json())
-                .then(data => {
-                    mostrarResultadosBusca(data);
-                })
-                .catch(error => {
-                    console.error('Erro na busca:', error);
-                    resultsDiv.innerHTML = '<div class="text-danger p-2">Erro na busca. Tente novamente.</div>';
-                });
-        }
-
-        function buscarEnderecoAutocomplete(query) {
-            if (query.length < 3) return;
-
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5`)
-                .then(response => response.json())
-                .then(data => {
-                    mostrarResultadosBusca(data);
-                })
-                .catch(console.error);
-        }
-
-        function buscarPorNumero(numero) {
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(numero)}&addressdetails=1&limit=10`)
-                .then(response => response.json())
-                .then(data => {
-                    const resultadosFiltrados = data.filter(item => 
-                        item.display_name.includes(numero) || 
-                        (item.address && item.address.house_number === numero)
-                    );
-                    mostrarResultadosBusca(resultadosFiltrados);
-                })
-                .catch(console.error);
-        }
-
-        function mostrarResultadosBusca(resultados) {
-            const resultsDiv = document.getElementById('searchResults');
             
-            if (resultados.length === 0) {
-                resultsDiv.innerHTML = '<div class="text-muted p-2">Nenhum resultado encontrado.</div>';
-                return;
-            }
+            // Adicionar controle de zoom no canto inferior esquerdo
+            L.control.zoom({
+                position: 'bottomleft'
+            }).addTo(map);
+        }
 
-            let html = '';
-            resultados.forEach((resultado, index) => {
-                const endereco = resultado.display_name;
-                const lat = parseFloat(resultado.lat);
-                const lng = parseFloat(resultado.lon);
-                
-                html += `
-                    <div class="search-result-item" onclick="selecionarResultadoBusca(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
-                        <div class="fw-bold">${endereco.split(',')[0]}</div>
-                        <small class="text-muted">${endereco}</small>
-                        <div class="mt-1">
-                            <small class="badge bg-primary">Lat: ${lat.toFixed(6)}</small>
-                            <small class="badge bg-primary ms-1">Lng: ${lng.toFixed(6)}</small>
-                        </div>
-                    </div>
-                `;
+        function configurarEventos() {
+            const input = document.getElementById('inputBusca');
+            
+            input.addEventListener('input', function(e) {
+                clearTimeout(searchTimeout);
+                if (e.target.value.length >= 3) {
+                    searchTimeout = setTimeout(() => {
+                        buscarLocal(e.target.value);
+                    }, 500);
+                } else {
+                    document.getElementById('searchResults').innerHTML = '';
+                }
             });
-
-            resultsDiv.innerHTML = html;
-            resultsDiv.style.display = 'block';
+            
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    buscarLocal(e.target.value);
+                }
+            });
         }
 
-        function mostrarResultadoCoordenada(lat, lng, query) {
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-                .then(response => response.json())
-                .then(data => {
-                    const endereco = data.display_name || 'Localização desconhecida';
-                    const resultsDiv = document.getElementById('searchResults');
-                    
-                    resultsDiv.innerHTML = `
-                        <div class="search-result-item" onclick="selecionarResultadoBusca(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
-                            <div class="fw-bold">Coordenadas: ${query}</div>
-                            <small class="text-muted">${endereco}</small>
-                            <div class="mt-2">
-                                <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); definirOrigemCoordenadas(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
-                                    📍 Origem
-                                </button>
-                                <button class="btn btn-danger btn-sm ms-1" onclick="event.stopPropagation(); definirDestinoCoordenadas(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
-                                    🏁 Destino
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    resultsDiv.style.display = 'block';
-                })
-                .catch(console.error);
-        }
-
-        function selecionarResultadoBusca(lat, lng, endereco) {
-            map.setView([lat, lng], 16);
-            
-            if (userMarker) {
-                userMarker.setLatLng([lat, lng]);
-            } else {
-                userMarker = L.marker([lat, lng]).addTo(map)
-                    .bindPopup(`<b>Local Selecionado</b><br>${endereco}`)
-                    .openPopup();
-            }
-            
-            const resultsDiv = document.getElementById('searchResults');
-            resultsDiv.innerHTML = `
-                <div class="location-option" onclick="definirOrigemCoordenadas(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
-                    <div class="fw-bold">📍 Definir como ORIGEM</div>
-                    <small class="text-muted">${endereco}</small>
-                </div>
-                <div class="location-option" onclick="definirDestinoCoordenadas(${lat}, ${lng}, '${endereco.replace(/'/g, "\\'")}')">
-                    <div class="fw-bold">🏁 Definir como DESTINO</div>
-                    <small class="text-muted">${endereco}</small>
-                </div>
-            `;
-        }
-
-        function definirOrigemCoordenadas(lat, lng, endereco) {
-            origemSelecionada = { lat: lat, lng: lng, endereco: endereco };
-            document.getElementById('origemText').textContent = endereco;
-            document.getElementById('origemCep').value = 'COORD:' + lat + ',' + lng;
-            document.getElementById('origemDisplay').classList.remove('empty');
-            verificarBotaoCalcular();
-            
-            if (originMarker) {
-                originMarker.setLatLng([lat, lng]);
-            } else {
-                originMarker = L.marker([lat, lng], { 
-                    icon: L.divIcon({ className: 'pulse-marker' })
-                }).addTo(map)
-                .bindPopup(`<b>Origem</b><br>${endereco}`);
-            }
-            
-            document.getElementById('searchResults').style.display = 'none';
-            document.getElementById('inputBusca').value = '';
-            
-            console.log('✓ Origem definida:', endereco);
-        }
-
-        function definirDestinoCoordenadas(lat, lng, endereco) {
-            destinoSelecionado = { lat: lat, lng: lng, endereco: endereco };
-            document.getElementById('destinoText').textContent = endereco;
-            document.getElementById('destinoCep').value = 'COORD:' + lat + ',' + lng;
-            document.getElementById('destinoDisplay').classList.remove('empty');
-            verificarBotaoCalcular();
-            
-            if (destinationMarker) {
-                destinationMarker.setLatLng([lat, lng]);
-            } else {
-                destinationMarker = L.marker([lat, lng], {
-                    icon: L.icon({
-                        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
-                        iconSize: [32, 32]
-                    })
-                }).addTo(map)
-                .bindPopup(`<b>Destino</b><br>${endereco}`);
-            }
-            
-            document.getElementById('searchResults').style.display = 'none';
-            document.getElementById('inputBusca').value = '';
-            
-            console.log('✓ Destino definido:', endereco);
-        }
-
-        function definirOrigem(cep, endereco) {
-            origemSelecionada = { cep: cep, endereco: endereco };
-            document.getElementById('origemText').textContent = endereco;
-            document.getElementById('origemCep').value = cep;
-            document.getElementById('origemDisplay').classList.remove('empty');
-            verificarBotaoCalcular();
-            console.log('✓ Origem definida:', endereco);
-        }
-
-        function definirDestino(cep, endereco) {
-            destinoSelecionado = { cep: cep, endereco: endereco };
-            document.getElementById('destinoText').textContent = endereco;
-            document.getElementById('destinoCep').value = cep;
-            document.getElementById('destinoDisplay').classList.remove('empty');
-            verificarBotaoCalcular();
-            console.log('✓ Destino definido:', endereco);
-        }
-
-        function verificarBotaoCalcular() {
-            var btn = document.getElementById('btnCalcularRota');
-            if (origemSelecionada && destinoSelecionado) {
-                btn.disabled = false;
-                btn.classList.remove('btn-light');
-                btn.classList.add('btn-warning');
-            } else {
-                btn.disabled = true;
-                btn.classList.remove('btn-warning');
-                btn.classList.add('btn-light');
-            }
-        }
-
-        function limparSelecao() {
-            origemSelecionada = null;
-            destinoSelecionado = null;
-            document.getElementById('origemCep').value = '';
-            document.getElementById('origemText').textContent = 'Nenhuma origem selecionada';
-            document.getElementById('destinoCep').value = '';
-            document.getElementById('destinoText').textContent = 'Nenhum destino selecionado';
-            document.getElementById('origemDisplay').classList.add('empty');
-            document.getElementById('destinoDisplay').classList.add('empty');
-            verificarBotaoCalcular();
-            
-            if (originMarker) {
-                map.removeLayer(originMarker);
-                originMarker = null;
-            }
-            if (destinationMarker) {
-                map.removeLayer(destinationMarker);
-                destinationMarker = null;
-            }
-            if (routePolyline) {
-                map.removeLayer(routePolyline);
-                routePolyline = null;
-            }
-        }
-
-        // Funções de GPS e Navegação
+        // GPS Functions
         function iniciarGPS() {
             if (!navigator.geolocation) {
-                alert('Geolocalização não é suportada pelo seu navegador');
+                alert('GPS não disponível neste dispositivo');
                 return;
             }
 
             if (isGPSActive) {
+                // Desativar GPS
                 if (watchId) {
                     navigator.geolocation.clearWatch(watchId);
-                    watchId = null;
                 }
                 isGPSActive = false;
-                document.getElementById('gpsStatus').className = 'gps-status gps-inactive';
-                document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-satellite-dish"></i> GPS Inativo';
-                document.getElementById('btnGpsText').textContent = 'Ativar GPS';
-                document.getElementById('positionInfo').style.display = 'none';
+                document.getElementById('gpsStatus').className = 'gps-status inactive';
+                document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-satellite-dish"></i> GPS OFF';
                 document.getElementById('speedDisplay').classList.remove('active');
             } else {
-                document.getElementById('gpsStatus').className = 'gps-status gps-active';
-                document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-satellite-dish"></i> GPS Ativo - Buscando...';
-                
+                // Ativar GPS
                 watchId = navigator.geolocation.watchPosition(
-                    function(position) {
-                        atualizarPosicaoUsuario(position);
-                    },
-                    function(error) {
-                        console.error('Erro GPS:', error);
-                        document.getElementById('gpsStatus').className = 'gps-status gps-inactive';
-                        document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro GPS';
-                    },
+                    atualizarPosicao,
+                    erroGPS,
                     {
                         enableHighAccuracy: true,
                         timeout: 5000,
@@ -1055,182 +720,351 @@
                 );
                 
                 isGPSActive = true;
-                document.getElementById('btnGpsText').textContent = 'Desativar GPS';
-                document.getElementById('positionInfo').style.display = 'block';
+                document.getElementById('gpsStatus').className = 'gps-status active';
+                document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-satellite-dish"></i> GPS ON';
                 document.getElementById('speedDisplay').classList.add('active');
             }
         }
 
-        function atualizarPosicaoUsuario(position) {
+        function atualizarPosicao(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            const accuracy = position.coords.accuracy;
-            const speed = position.coords.speed || 0;
+            const speed = (position.coords.speed || 0) * 3.6; // m/s para km/h
             
-            // Atualizar interface
-            document.getElementById('currentLat').textContent = lat.toFixed(6);
-            document.getElementById('currentLng').textContent = lng.toFixed(6);
-            document.getElementById('currentAccuracy').textContent = accuracy.toFixed(0) + ' m';
-            document.getElementById('currentSpeed').textContent = (speed * 3.6).toFixed(1) + ' km/h';
-            document.getElementById('speedValue').textContent = (speed * 3.6).toFixed(0);
+            currentPosition = { lat, lng };
             
-            document.getElementById('gpsStatus').innerHTML = 
-                '<i class="fas fa-satellite-dish"></i> GPS Ativo - Precisão: ' + accuracy.toFixed(0) + 'm';
+            // Atualizar velocímetro
+            document.getElementById('speedValue').textContent = Math.round(speed);
             
-            // Atualizar marcador no mapa
+            // Atualizar marcador
             if (!userMarker) {
-                userMarker = L.marker([lat, lng]).addTo(map)
-                    .bindPopup('<b>Sua Posição</b><br>GPS Ativo');
-                
-                userCircle = L.circle([lat, lng], {
-                    radius: accuracy,
-                    color: '#007bff',
-                    fillColor: '#007bff',
-                    fillOpacity: 0.1
+                userMarker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'user-marker',
+                        html: '<div style="width: 20px; height: 20px; background: #007bff; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 0 rgba(0, 123, 255, 0.4); animation: pulse 2s infinite;"></div>',
+                        iconSize: [20, 20]
+                    })
                 }).addTo(map);
+                
+                map.setView([lat, lng], 16);
             } else {
                 userMarker.setLatLng([lat, lng]);
-                userCircle.setLatLng([lat, lng]).setRadius(accuracy);
             }
             
-            // Enviar posição via WebSocket
-            if (stompClient && stompClient.connected) {
-                const posicaoData = {
-                    latitude: lat,
-                    longitude: lng,
-                    accuracy: accuracy,
-                    speed: speed
-                };
-                stompClient.send("/app/gps.posicao", {}, JSON.stringify(posicaoData));
+            // Se estiver navegando, verificar progresso
+            if (isNavigating && rotaData) {
+                verificarProgresso(lat, lng);
             }
-            
-            // Centralizar no usuário se estiver navegando
-            if (isNavigating) {
-                map.setView([lat, lng], 16);
-            }
-            
-            lastPosition = { lat, lng };
-            velocidadeAtual = speed * 3.6;
         }
 
-        function centralizarNoUsuario() {
-            if (lastPosition) {
-                map.setView([lastPosition.lat, lastPosition.lng], 16);
+        function erroGPS(error) {
+            console.error('Erro GPS:', error);
+            document.getElementById('gpsStatus').className = 'gps-status inactive';
+            document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro GPS';
+        }
+
+        function centralizarUsuario() {
+            if (currentPosition) {
+                map.setView([currentPosition.lat, currentPosition.lng], 16);
             } else {
-                alert('GPS não está ativo ou posição não disponível');
+                alert('GPS não está ativo');
             }
         }
 
-        function iniciarNavegacao() {
-            if (!rotaData) {
-                alert('Calcule uma rota primeiro!');
+        // Search Functions
+        function toggleSearchPanel() {
+            const panel = document.getElementById('searchPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function setLocationMode(mode) {
+            locationMode = mode;
+            
+            document.getElementById('btnOrigem').classList.remove('active');
+            document.getElementById('btnDestino').classList.remove('active');
+            
+            if (mode === 'origem') {
+                document.getElementById('btnOrigem').classList.add('active');
+            } else {
+                document.getElementById('btnDestino').classList.add('active');
+            }
+        }
+
+        function buscarLocal(query) {
+            const resultsDiv = document.getElementById('searchResults');
+            
+            if (!query || query.length < 3) {
+                resultsDiv.innerHTML = '';
                 return;
             }
             
-            if (!isGPSActive) {
-                alert('Ative o GPS para iniciar a navegação!');
+            resultsDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i></div>';
+            
+            // Verificar se é coordenada
+            if (/^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(query)) {
+                const [lat, lng] = query.split(',').map(s => parseFloat(s.trim()));
+                mostrarResultadoCoordenada(lat, lng);
                 return;
             }
             
-            isNavigating = true;
-            document.getElementById('navigationPanel').classList.add('active');
-            document.getElementById('btnStartNav').innerHTML = '<i class="fas fa-pause"></i>';
-            document.getElementById('btnStartNav').setAttribute('onclick', 'pararNavegacao()');
-            document.getElementById('btnStartNav').title = 'Parar Navegação';
+            // Buscar no Nominatim
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=8`)
+                .then(response => response.json())
+                .then(data => {
+                    mostrarResultados(data);
+                })
+                .catch(error => {
+                    console.error('Erro na busca:', error);
+                    resultsDiv.innerHTML = '<div style="padding: 15px; text-align: center; color: #dc3545;">Erro na busca</div>';
+                });
+        }
+
+        function mostrarResultados(resultados) {
+            const resultsDiv = document.getElementById('searchResults');
             
-            if (stompClient && stompClient.connected) {
-                stompClient.send("/app/navegacao.iniciar", {}, "");
-            }
-            
-            console.log('🚗 Navegação iniciada!');
-        }
-
-        function pararNavegacao() {
-            isNavigating = false;
-            document.getElementById('navigationPanel').classList.remove('active');
-            document.getElementById('btnStartNav').innerHTML = '<i class="fas fa-play"></i>';
-            document.getElementById('btnStartNav').setAttribute('onclick', 'iniciarNavegacao()');
-            document.getElementById('btnStartNav').title = 'Iniciar Navegação';
-            
-            if (stompClient && stompClient.connected) {
-                stompClient.send("/app/navegacao.parar", {}, "");
-            }
-            
-            console.log('🛑 Navegação parada!');
-        }
-
-        function centralizarRota() {
-            if (rotaData && routePolyline) {
-                map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
-            } else {
-                alert('Calcule uma rota primeiro!');
-            }
-        }
-
-        function toggleVoz() {
-            isVoiceEnabled = !isVoiceEnabled;
-            const btn = document.getElementById('btnVoice');
-            if (isVoiceEnabled) {
-                btn.innerHTML = '<i class="fas fa-volume-up"></i>';
-                btn.title = 'Desativar Voz';
-                console.log('🔊 Voz ativada');
-            } else {
-                btn.innerHTML = '<i class="fas fa-volume-mute"></i>';
-                btn.title = 'Ativar Voz';
-                console.log('🔇 Voz desativada');
-            }
-        }
-
-        // Funções para processamento de rota
-        function processarRota() {
-            if (rotaData && rotaData.instrucoes) {
-                instrucoes = rotaData.instrucoes;
-                console.log('Rota processada com', instrucoes.length, 'instruções');
-                
-                // Atualizar instrução atual
-                if (instrucoes.length > 0) {
-                    atualizarInstrucaoAtual({instrucao: instrucoes[0].instrucao, index: 0});
-                }
-            }
-        }
-
-        function desenharRotaCompleta() {
-            if (!rotaData || !rotaData.dadosRotaCompleta) {
-                console.log('Dados da rota não disponíveis');
+            if (resultados.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 15px; text-align: center; color: #666;">Nenhum resultado</div>';
                 return;
             }
+            
+            let html = '';
+            resultados.forEach(r => {
+                html += `
+                    <div class="result-item" onclick='selecionarLocal(${r.lat}, ${r.lon}, "${r.display_name.replace(/'/g, "\\'")}");'>
+                        <div class="name">${r.display_name.split(',')[0]}</div>
+                        <div class="address">${r.display_name}</div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+        }
 
-            try {
-                const geometry = rotaData.dadosRotaCompleta.routes[0].geometry;
-                const coordinates = decodePolyline(geometry);
+        function mostrarResultadoCoordenada(lat, lng) {
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(response => response.json())
+                .then(data => {
+                    const endereco = data.display_name || 'Localização';
+                    selecionarLocal(lat, lng, endereco);
+                })
+                .catch(console.error);
+        }
+
+        function selecionarLocal(lat, lng, endereco) {
+            const data = {
+                lat: parseFloat(lat),
+                lng: parseFloat(lng),
+                endereco: endereco
+            };
+            
+            if (locationMode === 'origem') {
+                origemData = data;
+                document.getElementById('origemText').textContent = endereco.split(',')[0];
+                document.querySelector('#origemDisplay .clear').style.display = 'block';
                 
-                // Converter coordenadas para formato Leaflet [lat, lng]
-                const latLngs = coordinates.map(coord => [coord[1], coord[0]]);
-                
-                // Remover rota anterior se existir
-                if (routePolyline) {
-                    map.removeLayer(routePolyline);
-                }
-                
-                // Desenhar nova rota
-                routePolyline = L.polyline(latLngs, {
-                    color: '#007bff',
-                    weight: 6,
-                    opacity: 0.8,
-                    lineJoin: 'round'
+                if (originMarker) map.removeLayer(originMarker);
+                originMarker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'origin-marker',
+                        html: '<div style="width: 16px; height: 16px; background: #28a745; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>'
+                    })
                 }).addTo(map);
+            } else {
+                destinoData = data;
+                document.getElementById('destinoText').textContent = endereco.split(',')[0];
+                document.querySelector('#destinoDisplay .clear').style.display = 'block';
                 
-                // Ajustar mapa para mostrar toda a rota
-                map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
-                
-                console.log('✓ Rota desenhada no mapa com', latLngs.length, 'pontos');
-                
-            } catch (error) {
-                console.error('Erro ao desenhar rota:', error);
+                if (destinationMarker) map.removeLayer(destinationMarker);
+                destinationMarker = L.marker([lat, lng], {
+                    icon: L.icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41]
+                    })
+                }).addTo(map);
+            }
+            
+            map.setView([lat, lng], 15);
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('inputBusca').value = '';
+            
+            verificarBotaoCalcular();
+        }
+
+        function selectFromHistory(element) {
+            const cep = element.getAttribute('data-cep');
+            const endereco = element.getAttribute('data-endereco');
+            
+            // Buscar coordenadas do CEP
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${endereco}&limit=1`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        selecionarLocal(data[0].lat, data[0].lon, endereco);
+                    }
+                })
+                .catch(console.error);
+        }
+
+        function clearOrigem() {
+            origemData = null;
+            document.getElementById('origemText').textContent = 'Nenhuma origem';
+            document.querySelector('#origemDisplay .clear').style.display = 'none';
+            if (originMarker) {
+                map.removeLayer(originMarker);
+                originMarker = null;
+            }
+            verificarBotaoCalcular();
+        }
+
+        function clearDestino() {
+            destinoData = null;
+            document.getElementById('destinoText').textContent = 'Nenhum destino';
+            document.querySelector('#destinoDisplay .clear').style.display = 'none';
+            if (destinationMarker) {
+                map.removeLayer(destinationMarker);
+                destinationMarker = null;
+            }
+            verificarBotaoCalcular();
+        }
+
+        function limparTudo() {
+            clearOrigem();
+            clearDestino();
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+                routePolyline = null;
+            }
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('inputBusca').value = '';
+            rotaData = null;
+            esconderBotaoRecalcular();
+        }
+
+        function verificarBotaoCalcular() {
+            const btn = document.getElementById('btnCalcular');
+            if (origemData && destinoData) {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
             }
         }
 
-        // Decodificar polyline do OSRM
+        // Route Functions
+        function calcularRota() {
+            if (!origemData || !destinoData) {
+                alert('Selecione origem e destino');
+                return;
+            }
+            
+            const btn = document.getElementById('btnCalcular');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculando...';
+            
+            // Usar OSRM para calcular rota
+            const url = `https://router.project-osrm.org/route/v1/driving/${origemData.lng},${origemData.lat};${destinoData.lng},${destinoData.lat}?overview=full&steps=true&geometries=polyline`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 'Ok' && data.routes.length > 0) {
+                        rotaData = processarRotaOSRM(data.routes[0]);
+                        desenharRota(rotaData);
+                        toggleSearchPanel();
+                        mostrarBotaoRecalcular();
+                        
+                        // Mostrar mensagem de sucesso
+                        alert(`Rota calculada!\nDistância: ${(rotaData.distance / 1000).toFixed(1)} km\nTempo: ${Math.round(rotaData.duration / 60)} min`);
+                    } else {
+                        alert('Não foi possível calcular a rota');
+                    }
+                    
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-route"></i> Calcular';
+                })
+                .catch(error => {
+                    console.error('Erro ao calcular rota:', error);
+                    alert('Erro ao calcular rota. Tente novamente.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-route"></i> Calcular';
+                });
+        }
+
+        function recalcularRota() {
+            if (!currentPosition) {
+                alert('GPS não está ativo');
+                return;
+            }
+            
+            if (!destinoData) {
+                alert('Destino não definido');
+                return;
+            }
+            
+            // Usar posição atual como origem
+            origemData = {
+                lat: currentPosition.lat,
+                lng: currentPosition.lng,
+                endereco: 'Posição Atual'
+            };
+            
+            document.getElementById('origemText').textContent = 'Posição Atual';
+            
+            if (originMarker) map.removeLayer(originMarker);
+            originMarker = L.marker([currentPosition.lat, currentPosition.lng], {
+                icon: L.divIcon({
+                    className: 'origin-marker',
+                    html: '<div style="width: 16px; height: 16px; background: #28a745; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>'
+                })
+            }).addTo(map);
+            
+            calcularRota();
+        }
+
+        function processarRotaOSRM(route) {
+            const steps = route.legs[0].steps;
+            const instrucoes = steps.map((step, index) => ({
+                instrucao: step.maneuver.type === 'depart' ? 'Siga em frente' : 
+                           step.maneuver.type === 'arrive' ? 'Você chegou ao destino' :
+                           step.name || 'Continue',
+                distancia: step.distance,
+                duracao: step.duration,
+                coordenadas: {
+                    lat: step.maneuver.location[1],
+                    lng: step.maneuver.location[0]
+                }
+            }));
+            
+            return {
+                distance: route.distance,
+                duration: route.duration,
+                geometry: route.geometry,
+                instrucoes: instrucoes
+            };
+        }
+
+        function desenharRota(rota) {
+            // Remover rota anterior
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+            }
+            
+            // Decodificar polyline
+            const coordinates = decodePolyline(rota.geometry);
+            const latLngs = coordinates.map(coord => [coord[1], coord[0]]);
+            
+            // Desenhar rota
+            routePolyline = L.polyline(latLngs, {
+                color: '#007bff',
+                weight: 6,
+                opacity: 0.7,
+                lineJoin: 'round'
+            }).addTo(map);
+            
+            // Ajustar visualização
+            map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+        }
+
         function decodePolyline(str, precision) {
             precision = precision || 5;
             var factor = Math.pow(10, precision);
@@ -1263,66 +1097,194 @@
             return coordinates;
         }
 
-        function atualizarInstrucaoAtual(instrucaoData) {
-            document.getElementById('nextInstructionText').textContent = instrucaoData.instrucao;
-            currentInstructionIndex = instrucaoData.index;
+        function processarRota() {
+            if (rotaData && rotaData.instrucoes) {
+                // Processar rota já existente do servidor
+                console.log('Rota carregada com', rotaData.instrucoes.length, 'instruções');
+            }
+        }
+
+        function mostrarBotaoRecalcular() {
+            document.getElementById('btnRecalc').style.display = 'flex';
+        }
+
+        function esconderBotaoRecalcular() {
+            document.getElementById('btnRecalc').style.display = 'none';
+        }
+
+        // Navigation Functions
+        function toggleNavigation() {
+            if (!rotaData) {
+                alert('Calcule uma rota primeiro');
+                return;
+            }
             
-            // Atualizar cards de instrução
-            document.querySelectorAll('.instruction-card').forEach((card, index) => {
-                card.classList.remove('active', 'passed');
-                if (index === currentInstructionIndex) {
-                    card.classList.add('active');
-                } else if (index < currentInstructionIndex) {
-                    card.classList.add('passed');
+            if (!isGPSActive) {
+                alert('Ative o GPS primeiro');
+                return;
+            }
+            
+            if (isNavigating) {
+                pararNavegacao();
+            } else {
+                iniciarNavegacao();
+            }
+        }
+
+        function iniciarNavegacao() {
+            isNavigating = true;
+            document.getElementById('navPanel').classList.add('active');
+            document.getElementById('btnNav').innerHTML = '<i class="fas fa-stop"></i>';
+            
+            if (rotaData && rotaData.instrucoes && rotaData.instrucoes.length > 0) {
+                atualizarInstrucaoNavegacao(0);
+            }
+            
+            // Centralizar no usuário
+            if (currentPosition) {
+                map.setView([currentPosition.lat, currentPosition.lng], 16);
+            }
+            
+            console.log('Navegação iniciada');
+        }
+
+        function pararNavegacao() {
+            isNavigating = false;
+            document.getElementById('navPanel').classList.remove('active');
+            document.getElementById('btnNav').innerHTML = '<i class="fas fa-play"></i>';
+            
+            console.log('Navegação parada');
+        }
+
+        function atualizarInstrucaoNavegacao(index) {
+            if (!rotaData || !rotaData.instrucoes) return;
+            
+            const instrucao = rotaData.instrucoes[index];
+            if (!instrucao) return;
+            
+            document.getElementById('navText').textContent = instrucao.instrucao;
+            
+            if (instrucao.distancia) {
+                const dist = instrucao.distancia;
+                if (dist < 1000) {
+                    document.getElementById('navDistance').textContent = Math.round(dist) + 'm';
+                } else {
+                    document.getElementById('navDistance').textContent = (dist / 1000).toFixed(1) + 'km';
+                }
+            }
+            
+            // Atualizar estatísticas
+            const distanciaRestante = rotaData.instrucoes.slice(index).reduce((sum, i) => sum + (i.distancia || 0), 0);
+            const tempoRestante = rotaData.instrucoes.slice(index).reduce((sum, i) => sum + (i.duracao || 0), 0);
+            
+            document.getElementById('remainingDistance').textContent = (distanciaRestante / 1000).toFixed(1) + ' km';
+            document.getElementById('remainingTime').textContent = Math.round(tempoRestante / 60) + ' min';
+            
+            // Calcular ETA
+            const agora = new Date();
+            const eta = new Date(agora.getTime() + tempoRestante * 1000);
+            document.getElementById('etaTime').textContent = eta.getHours().toString().padStart(2, '0') + ':' + eta.getMinutes().toString().padStart(2, '0');
+            
+            // Sintetizar voz
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(instrucao.instrucao);
+                utterance.lang = 'pt-BR';
+                utterance.rate = 1.0;
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        function verificarProgresso(lat, lng) {
+            if (!rotaData || !rotaData.instrucoes) return;
+            
+            // Calcular distância até o próximo ponto de instrução
+            // (Implementação simplificada - em produção usar algoritmo mais robusto)
+            
+            let menorDistancia = Infinity;
+            let indiceMaisProximo = 0;
+            
+            rotaData.instrucoes.forEach((instrucao, index) => {
+                if (instrucao.coordenadas) {
+                    const dist = calcularDistancia(
+                        lat, lng, 
+                        instrucao.coordenadas.lat, 
+                        instrucao.coordenadas.lng
+                    );
+                    
+                    if (dist < menorDistancia) {
+                        menorDistancia = dist;
+                        indiceMaisProximo = index;
+                    }
                 }
             });
             
-            // Atualizar ETA
-            if (rotaData && rotaData.instrucoes) {
-                const instrucaoAtual = rotaData.instrucoes[currentInstructionIndex];
-                if (instrucaoAtual && instrucaoAtual.distancia) {
-                    document.getElementById('nextDistance').textContent = 
-                        'Em ' + Math.round(instrucaoAtual.distancia) + ' metros';
+            // Se chegou perto de um ponto de instrução (menos de 50m)
+            if (menorDistancia < 0.05) { // aproximadamente 50m
+                atualizarInstrucaoNavegacao(indiceMaisProximo);
+                
+                // Mostrar alerta se próximo (menos de 100m)
+                if (menorDistancia < 0.1 && indiceMaisProximo < rotaData.instrucoes.length - 1) {
+                    mostrarAlerta(rotaData.instrucoes[indiceMaisProximo].instrucao);
                 }
             }
             
-            // Sintetizar voz se habilitado
-            if (isVoiceEnabled && 'speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(instrucaoData.instrucao);
-                utterance.lang = 'pt-BR';
-                speechSynthesis.speak(utterance);
+            // Verificar se chegou ao destino (menos de 20m)
+            if (indiceMaisProximo === rotaData.instrucoes.length - 1 && menorDistancia < 0.02) {
+                mostrarChegada();
             }
         }
 
-        function mostrarAlertaManobra(alerta) {
+        function calcularDistancia(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Raio da Terra em km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function mostrarAlerta(mensagem) {
             const alertDiv = document.getElementById('maneuverAlert');
-            const alertText = document.getElementById('alertText');
-            
-            alertText.textContent = alerta.mensagem;
+            document.getElementById('alertText').textContent = mensagem;
             alertDiv.classList.add('show');
-            
-            // Sintetizar alerta de voz
-            if (isVoiceEnabled && 'speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(alerta.mensagem);
-                utterance.lang = 'pt-BR';
-                speechSynthesis.speak(utterance);
-            }
             
             setTimeout(() => {
                 alertDiv.classList.remove('show');
-            }, 5000);
+            }, 4000);
         }
 
-        function mostrarChegada(mensagem) {
-            alert(mensagem);
+        function mostrarChegada() {
+            alert('🎉 Você chegou ao destino!');
             pararNavegacao();
             
-            if (isVoiceEnabled && 'speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance("Você chegou ao destino!");
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance('Você chegou ao seu destino!');
                 utterance.lang = 'pt-BR';
                 speechSynthesis.speak(utterance);
             }
         }
+
+        // Prevenir zoom do iOS em inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('focus', function() {
+                if (window.innerWidth < 768) {
+                    setTimeout(() => {
+                        window.scrollTo(0, 0);
+                        document.body.scrollTop = 0;
+                    }, 0);
+                }
+            });
+        });
+
+        // Prevenir comportamentos indesejados em mobile
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('#map')) {
+                // Permitir scroll no mapa
+                return;
+            }
+        }, { passive: true });
     </script>
 </body>
 </html>
