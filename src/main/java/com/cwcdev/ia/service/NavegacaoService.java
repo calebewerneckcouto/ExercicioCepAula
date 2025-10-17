@@ -1,17 +1,21 @@
 package com.cwcdev.ia.service;
 
-import com.cwcdev.ia.model.Endereco;
-import com.cwcdev.ia.model.Rota;
-import com.cwcdev.ia.model.InstrucaoNavegacao;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import com.cwcdev.ia.model.Endereco;
+import com.cwcdev.ia.model.InstrucaoNavegacao;
+import com.cwcdev.ia.model.Rota;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 public class NavegacaoService {
@@ -29,12 +33,36 @@ public class NavegacaoService {
         this.objectMapper = new ObjectMapper();
     }
 
-    public Endereco buscarEnderecoPorCep(String cep) {
-        // Se for coordenada, retornar diretamente
-        if (cep.startsWith("COORD:")) {
-            return criarEnderecoDeCoordenadas(cep);
+    /**
+     * Busca endereço por CEP ou consulta textual usando Streams Java 8
+     */
+    public List<Endereco> buscarEnderecos(String query) {
+        List<Endereco> resultados = new ArrayList<>();
+        
+        // Limpar query
+        String queryLimpa = query.trim();
+        
+        // Verificar se é CEP (apenas números, 8 dígitos)
+        String apenasNumeros = queryLimpa.replaceAll("[^0-9]", "");
+        
+        if (apenasNumeros.length() == 8) {
+            // É um CEP
+            Endereco endereco = buscarEnderecoPorCep(apenasNumeros);
+            if (!endereco.isErro()) {
+                resultados.add(endereco);
+            }
+        } else {
+            // É uma busca textual - buscar no Nominatim
+            resultados = buscarPorTexto(queryLimpa);
         }
         
+        return resultados;
+    }
+
+    /**
+     * Busca por CEP no ViaCEP
+     */
+    public Endereco buscarEnderecoPorCep(String cep) {
         cep = cep.replaceAll("[^0-9]", "");
         
         if (cep.length() != 8) {
@@ -49,7 +77,10 @@ public class NavegacaoService {
             
             if (endereco != null && endereco.getCep() == null) {
                 endereco.setErro(true);
-            } else if (endereco != null && !endereco.isErro()) {
+                return endereco;
+            }
+            
+            if (endereco != null && !endereco.isErro()) {
                 buscarCoordenadas(endereco);
             }
             
@@ -61,42 +92,154 @@ public class NavegacaoService {
         }
     }
 
-    private Endereco criarEnderecoDeCoordenadas(String coordString) {
+    /**
+     * Busca textual usando Nominatim com filtro para Brasil
+     */
+    public List<Endereco> buscarPorTexto(String query) {
         try {
-            // Formato: COORD:lat,lng
-            String coordPart = coordString.replace("COORD:", "");
-            String[] parts = coordPart.split(",");
+            String url = String.format("%s?format=json&q=%s&addressdetails=1&limit=10&countrycodes=br", 
+                NOMINATIM_URL, 
+                java.net.URLEncoder.encode(query, "UTF-8"));
             
-            if (parts.length == 2) {
-                double lat = Double.parseDouble(parts[0]);
-                double lng = Double.parseDouble(parts[1]);
-                
-                Endereco endereco = new Endereco();
-                endereco.setCep("COORDENADA");
-                endereco.setLogradouro("Localização GPS");
-                endereco.setLocalidade("Coordenada");
-                endereco.setUf("GPS");
-                endereco.setLatitude(lat);
-                endereco.setLongitude(lng);
-                endereco.setErro(false);
-                
-                return endereco;
+            // Configurar User-Agent
+            restTemplate.getInterceptors().clear();
+            restTemplate.getInterceptors().add((request, body, execution) -> {
+                request.getHeaders().set("User-Agent", "GPS-Navegacao-App/1.0");
+                return execution.execute(request, body);
+            });
+            
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            JsonNode root = objectMapper.readTree(response.getBody());
+            
+            // Usar Streams Java 8 para processar resultados
+            if (root.isArray()) {
+                return StreamSupport.stream(root.spliterator(), false)
+                    .map(this::jsonNodeParaEndereco)
+                    .filter(e -> e != null && !e.isErro())
+                    .collect(Collectors.toList());
             }
+            
         } catch (Exception e) {
-            System.err.println("Erro ao parsear coordenadas: " + e.getMessage());
+            System.err.println("Erro ao buscar por texto: " + e.getMessage());
         }
         
-        return criarEnderecoComErro("Coordenadas inválidas");
+        return new ArrayList<>();
     }
 
+    /**
+     * Converte JsonNode do Nominatim para Endereco usando Streams
+     */
+    private Endereco jsonNodeParaEndereco(JsonNode node) {
+        try {
+            Endereco endereco = new Endereco();
+            
+            // Extrair coordenadas
+            endereco.setLatitude(node.get("lat").asDouble());
+            endereco.setLongitude(node.get("lon").asDouble());
+            
+            // Extrair detalhes do endereço se disponível
+            if (node.has("address")) {
+                JsonNode address = node.get("address");
+                
+                // Usar Stream para encontrar o melhor campo para logradouro
+                String logradouro = Stream.of("road", "street", "pedestrian", "footway")
+                    .filter(address::has)
+                    .findFirst()
+                    .map(field -> address.get(field).asText())
+                    .orElse(node.has("display_name") ? 
+                        node.get("display_name").asText().split(",")[0] : "");
+                
+                endereco.setLogradouro(logradouro);
+                
+                // Bairro
+                if (address.has("suburb")) {
+                    endereco.setBairro(address.get("suburb").asText());
+                } else if (address.has("neighbourhood")) {
+                    endereco.setBairro(address.get("neighbourhood").asText());
+                }
+                
+                // Cidade
+                if (address.has("city")) {
+                    endereco.setLocalidade(address.get("city").asText());
+                } else if (address.has("town")) {
+                    endereco.setLocalidade(address.get("town").asText());
+                } else if (address.has("municipality")) {
+                    endereco.setLocalidade(address.get("municipality").asText());
+                }
+                
+                // Estado
+                if (address.has("state")) {
+                    String estado = address.get("state").asText();
+                    // Converter nome completo para sigla se necessário
+                    endereco.setUf(converterEstadoParaSigla(estado));
+                }
+                
+                // CEP se disponível
+                if (address.has("postcode")) {
+                    endereco.setCep(address.get("postcode").asText());
+                } else {
+                    endereco.setCep("N/A");
+                }
+            }
+            
+            endereco.setErro(false);
+            return endereco;
+            
+        } catch (Exception e) {
+            System.err.println("Erro ao converter JsonNode: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Converte nome de estado para sigla
+     */
+    private String converterEstadoParaSigla(String estado) {
+        // Map de estados para siglas usando Java 8
+        java.util.Map<String, String> estadosMap = new java.util.HashMap<>();
+        estadosMap.put("Acre", "AC");
+        estadosMap.put("Alagoas", "AL");
+        estadosMap.put("Amapá", "AP");
+        estadosMap.put("Amazonas", "AM");
+        estadosMap.put("Bahia", "BA");
+        estadosMap.put("Ceará", "CE");
+        estadosMap.put("Distrito Federal", "DF");
+        estadosMap.put("Espírito Santo", "ES");
+        estadosMap.put("Goiás", "GO");
+        estadosMap.put("Maranhão", "MA");
+        estadosMap.put("Mato Grosso", "MT");
+        estadosMap.put("Mato Grosso do Sul", "MS");
+        estadosMap.put("Minas Gerais", "MG");
+        estadosMap.put("Pará", "PA");
+        estadosMap.put("Paraíba", "PB");
+        estadosMap.put("Paraná", "PR");
+        estadosMap.put("Pernambuco", "PE");
+        estadosMap.put("Piauí", "PI");
+        estadosMap.put("Rio de Janeiro", "RJ");
+        estadosMap.put("Rio Grande do Norte", "RN");
+        estadosMap.put("Rio Grande do Sul", "RS");
+        estadosMap.put("Rondônia", "RO");
+        estadosMap.put("Roraima", "RR");
+        estadosMap.put("Santa Catarina", "SC");
+        estadosMap.put("São Paulo", "SP");
+        estadosMap.put("Sergipe", "SE");
+        estadosMap.put("Tocantins", "TO");
+        
+        return estadosMap.getOrDefault(estado, estado.length() <= 2 ? estado : "BR");
+    }
+
+    /**
+     * Busca coordenadas de um endereço usando Nominatim
+     */
     private boolean buscarCoordenadas(Endereco endereco) {
         try {
             String enderecoCompleto = construirEnderecoCompleto(endereco);
             
-            String url = String.format("%s?format=json&q=%s&limit=1", 
+            String url = String.format("%s?format=json&q=%s&limit=1&countrycodes=br", 
                 NOMINATIM_URL, 
                 java.net.URLEncoder.encode(enderecoCompleto, "UTF-8"));
             
+            restTemplate.getInterceptors().clear();
             restTemplate.getInterceptors().add((request, body, execution) -> {
                 request.getHeaders().set("User-Agent", "GPS-Navegacao-App/1.0");
                 return execution.execute(request, body);
@@ -117,34 +260,26 @@ public class NavegacaoService {
         return false;
     }
 
+    /**
+     * Constrói endereço completo usando Streams
+     */
     private String construirEnderecoCompleto(Endereco endereco) {
-        StringBuilder enderecoCompleto = new StringBuilder();
-        
-        if (endereco.getLogradouro() != null && !endereco.getLogradouro().isEmpty()) {
-            enderecoCompleto.append(endereco.getLogradouro());
-        }
-        
-        if (endereco.getBairro() != null && !endereco.getBairro().isEmpty()) {
-            if (enderecoCompleto.length() > 0) enderecoCompleto.append(", ");
-            enderecoCompleto.append(endereco.getBairro());
-        }
-        
-        if (endereco.getLocalidade() != null && !endereco.getLocalidade().isEmpty()) {
-            if (enderecoCompleto.length() > 0) enderecoCompleto.append(", ");
-            enderecoCompleto.append(endereco.getLocalidade());
-        }
-        
-        if (endereco.getUf() != null && !endereco.getUf().isEmpty()) {
-            if (enderecoCompleto.length() > 0) enderecoCompleto.append(", ");
-            enderecoCompleto.append(endereco.getUf());
-        }
-        
-        return enderecoCompleto.toString();
+        return Stream.of(
+                endereco.getLogradouro(),
+                endereco.getBairro(),
+                endereco.getLocalidade(),
+                endereco.getUf()
+            )
+            .filter(s -> s != null && !s.isEmpty())
+            .collect(Collectors.joining(", "));
     }
 
+    /**
+     * Calcula rota entre origem e destino
+     */
     public Rota calcularRota(Endereco origem, Endereco destino) {
         try {
-            // Garantir que temos coordenadas
+            // Garantir coordenadas
             if (origem.getLatitude() == null || origem.getLongitude() == null) {
                 if (!buscarCoordenadas(origem)) {
                     throw new RuntimeException("Não foi possível obter coordenadas da origem");
@@ -157,26 +292,20 @@ public class NavegacaoService {
                 }
             }
             
-            System.out.println("Coordenadas origem: " + origem.getLatitude() + ", " + origem.getLongitude());
-            System.out.println("Coordenadas destino: " + destino.getLatitude() + ", " + destino.getLongitude());
+            System.out.println("📍 Origem: " + origem.getLatitude() + ", " + origem.getLongitude());
+            System.out.println("🏁 Destino: " + destino.getLatitude() + ", " + destino.getLongitude());
             
             String coordenadas = String.format("%s,%s;%s,%s", 
                 origem.getLongitude(), origem.getLatitude(),
                 destino.getLongitude(), destino.getLatitude());
             
-            // Solicitar geometria completa e instruções detalhadas
             String url = OSRM_URL + coordenadas + "?overview=full&steps=true&geometries=polyline&annotations=true";
-            
-            System.out.println("URL OSRM: " + url);
             
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
             JsonNode root = objectMapper.readTree(response.getBody());
             
-            System.out.println("Resposta OSRM: " + root.get("code").asText());
-            
             if (root.get("code").asText().equals("Ok")) {
-                JsonNode routes = root.get("routes");
-                JsonNode route = routes.get(0);
+                JsonNode route = root.get("routes").get(0);
                 
                 Rota rota = new Rota();
                 rota.setOrigem(origem);
@@ -185,79 +314,73 @@ public class NavegacaoService {
                 rota.setDuracao(route.get("duration").asDouble());
                 rota.setDadosRotaCompleta(root);
                 
-                // Processar instruções de navegação
-                List<InstrucaoNavegacao> instrucoes = processarInstrucoes(route);
+                // Processar instruções usando Streams
+                List<InstrucaoNavegacao> instrucoes = processarInstrucoesComStreams(route);
                 rota.setInstrucoes(instrucoes);
                 
-                System.out.println("Rota criada com " + instrucoes.size() + " instruções");
+                System.out.println("✓ Rota: " + String.format("%.1f km", rota.getDistancia() / 1000) + 
+                                 " - " + String.format("%.0f min", rota.getDuracao() / 60));
+                
                 return rota;
             } else {
                 throw new RuntimeException("Erro OSRM: " + root.get("message").asText());
             }
             
         } catch (Exception e) {
-            System.err.println("Erro ao calcular rota: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("✗ Erro ao calcular rota: " + e.getMessage());
             throw new RuntimeException("Erro ao calcular rota: " + e.getMessage());
         }
     }
     
-    private List<InstrucaoNavegacao> processarInstrucoes(JsonNode route) {
-        List<InstrucaoNavegacao> instrucoes = new ArrayList<>();
-        
+    /**
+     * Processa instruções de navegação usando Streams Java 8
+     */
+    private List<InstrucaoNavegacao> processarInstrucoesComStreams(JsonNode route) {
         try {
-            JsonNode legs = route.get("legs");
-            JsonNode leg = legs.get(0);
-            JsonNode steps = leg.get("steps");
+            JsonNode steps = route.get("legs").get(0).get("steps");
             
-            double distanciaAcumulada = 0;
+            final double[] distanciaAcumulada = {0.0}; // Array para usar em lambda
             
-            for (int i = 0; i < steps.size(); i++) {
-                JsonNode step = steps.get(i);
-                
-                // Pular instruções muito curtas (menos de 10m)
-                double distancia = step.get("distance").asDouble();
-                if (distancia < 10 && i > 0 && i < steps.size() - 1) {
-                    continue;
-                }
-                
-                InstrucaoNavegacao instrucao = new InstrucaoNavegacao();
-                
-                double duracao = step.get("duration").asDouble();
-                
-                instrucao.setDistancia(distancia);
-                instrucao.setDuracao(duracao);
-                instrucao.setDistanciaAcumulada(distanciaAcumulada);
-                
-                distanciaAcumulada += distancia;
-                
-                JsonNode maneuver = step.get("maneuver");
-                String maneuverType = maneuver.get("type").asText();
-                String maneuverModifier = maneuver.has("modifier") ? 
-                    maneuver.get("modifier").asText() : "";
-                String nomeRua = step.get("name").asText();
-                
-                // Extrair coordenadas da manobra
-                if (maneuver.has("location")) {
-                    JsonNode location = maneuver.get("location");
-                    instrucao.setLongitude(location.get(0).asDouble());
-                    instrucao.setLatitude(location.get(1).asDouble());
-                }
-                
-                if (nomeRua.isEmpty() || nomeRua.equals("")) {
-                    nomeRua = "estrada";
-                }
-                
-                instrucao.setTipo(maneuverType);
-                instrucao.setDirecao(maneuverModifier);
-                instrucao.setNomeRua(nomeRua);
-                instrucao.setInstrucao(gerarInstrucaoTexto(maneuverType, maneuverModifier, nomeRua, distancia));
-                
-                // Calcular distância para alerta (200m antes da manobra)
-                instrucao.setDistanciaAlerta(Math.max(0, distanciaAcumulada - 200));
-                
-                instrucoes.add(instrucao);
-            }
+            // Converter steps em Stream e processar
+            List<InstrucaoNavegacao> instrucoes = StreamSupport.stream(steps.spliterator(), false)
+                .filter(step -> step.get("distance").asDouble() >= 10) // Filtrar instruções muito curtas
+                .map(step -> {
+                    InstrucaoNavegacao instrucao = new InstrucaoNavegacao();
+                    
+                    double distancia = step.get("distance").asDouble();
+                    double duracao = step.get("duration").asDouble();
+                    
+                    instrucao.setDistancia(distancia);
+                    instrucao.setDuracao(duracao);
+                    instrucao.setDistanciaAcumulada(distanciaAcumulada[0]);
+                    
+                    distanciaAcumulada[0] += distancia;
+                    
+                    JsonNode maneuver = step.get("maneuver");
+                    String tipo = maneuver.get("type").asText();
+                    String direcao = maneuver.has("modifier") ? maneuver.get("modifier").asText() : "";
+                    String nomeRua = step.get("name").asText();
+                    
+                    // Coordenadas da manobra
+                    if (maneuver.has("location")) {
+                        JsonNode location = maneuver.get("location");
+                        instrucao.setLongitude(location.get(0).asDouble());
+                        instrucao.setLatitude(location.get(1).asDouble());
+                    }
+                    
+                    if (nomeRua == null || nomeRua.isEmpty()) {
+                        nomeRua = "estrada";
+                    }
+                    
+                    instrucao.setTipo(tipo);
+                    instrucao.setDirecao(direcao);
+                    instrucao.setNomeRua(nomeRua);
+                    instrucao.setInstrucao(gerarInstrucaoTexto(tipo, direcao, nomeRua, distancia));
+                    instrucao.setDistanciaAlerta(Math.max(0, distanciaAcumulada[0] - 200));
+                    
+                    return instrucao;
+                })
+                .collect(Collectors.toList());
             
             // Adicionar instrução de chegada
             if (!instrucoes.isEmpty()) {
@@ -266,18 +389,21 @@ public class NavegacaoService {
                 chegada.setInstrucao("Você chegou ao seu destino!");
                 chegada.setDistancia(0);
                 chegada.setDuracao(0);
-                chegada.setDistanciaAcumulada(distanciaAcumulada);
+                chegada.setDistanciaAcumulada(distanciaAcumulada[0]);
                 instrucoes.add(chegada);
             }
             
+            return instrucoes;
+            
         } catch (Exception e) {
             System.err.println("Erro ao processar instruções: " + e.getMessage());
-            e.printStackTrace();
+            return new ArrayList<>();
         }
-        
-        return instrucoes;
     }
     
+    /**
+     * Gera texto de instrução de navegação
+     */
     private String gerarInstrucaoTexto(String tipo, String direcao, String rua, double distancia) {
         StringBuilder instrucao = new StringBuilder();
         
@@ -286,24 +412,9 @@ public class NavegacaoService {
                 instrucao.append("Inicie na ").append(rua);
                 break;
             case "arrive":
-                instrucao.append("Você chegou ao destino");
-                return instrucao.toString();
+                return "Você chegou ao destino";
             case "turn":
-                if ("left".equals(direcao)) {
-                    instrucao.append("Vire à esquerda");
-                } else if ("right".equals(direcao)) {
-                    instrucao.append("Vire à direita");
-                } else if ("sharp left".equals(direcao)) {
-                    instrucao.append("Vire acentuadamente à esquerda");
-                } else if ("sharp right".equals(direcao)) {
-                    instrucao.append("Vire acentuadamente à direita");
-                } else if ("slight left".equals(direcao)) {
-                    instrucao.append("Mantenha-se à esquerda");
-                } else if ("slight right".equals(direcao)) {
-                    instrucao.append("Mantenha-se à direita");
-                } else {
-                    instrucao.append("Continue");
-                }
+                instrucao.append(getTurnText(direcao));
                 if (!rua.equals("estrada")) {
                     instrucao.append(" na ").append(rua);
                 }
@@ -319,11 +430,9 @@ public class NavegacaoService {
                 }
                 break;
             case "fork":
-                if ("left".equals(direcao)) {
-                    instrucao.append("Na bifurcação, mantenha-se à esquerda");
-                } else {
-                    instrucao.append("Na bifurcação, mantenha-se à direita");
-                }
+                instrucao.append(direcao.equals("left") ? 
+                    "Na bifurcação, mantenha-se à esquerda" : 
+                    "Na bifurcação, mantenha-se à direita");
                 break;
             case "merge":
                 instrucao.append("Entre na via");
@@ -341,12 +450,24 @@ public class NavegacaoService {
                 }
         }
         
-        // Adicionar distância se for significativa
+        // Adicionar distância se significativa
         if (distancia > 50) {
             instrucao.append(" por ").append(Math.round(distancia)).append(" metros");
         }
         
         return instrucao.toString();
+    }
+    
+    private String getTurnText(String direcao) {
+        switch (direcao) {
+            case "left": return "Vire à esquerda";
+            case "right": return "Vire à direita";
+            case "sharp left": return "Vire acentuadamente à esquerda";
+            case "sharp right": return "Vire acentuadamente à direita";
+            case "slight left": return "Mantenha-se à esquerda";
+            case "slight right": return "Mantenha-se à direita";
+            default: return "Continue";
+        }
     }
     
     private Endereco criarEnderecoComErro(String mensagem) {

@@ -35,6 +35,7 @@ public class Endereco {
     private String siafi;
     
     private boolean erro;
+    private String mensagemErro; // Novo campo para mensagem de erro
     
     // Novos campos para coordenadas
     private Double latitude;
@@ -56,6 +57,56 @@ public class Endereco {
         this.ddd = ddd;
         this.siafi = siafi;
         this.erro = false;
+        this.mensagemErro = null;
+    }
+
+    // Método estático para criar endereço com erro
+    public static Endereco criarComErro(String mensagem) {
+        Endereco endereco = new Endereco();
+        endereco.setErro(true);
+        endereco.setMensagemErro(mensagem);
+        return endereco;
+    }
+
+    // Método para verificar se o endereço é válido
+    public boolean isValido() {
+        return !erro && cep != null && !cep.trim().isEmpty();
+    }
+
+    // Método para obter endereço formatado
+    public String getEnderecoFormatado() {
+        if (erro) {
+            return mensagemErro != null ? mensagemErro : "Endereço não encontrado";
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        if (logradouro != null && !logradouro.trim().isEmpty()) {
+            sb.append(logradouro);
+        }
+        if (bairro != null && !bairro.trim().isEmpty()) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(bairro);
+        }
+        if (localidade != null && !localidade.trim().isEmpty()) {
+            if (sb.length() > 0) sb.append(" - ");
+            sb.append(localidade);
+        }
+        if (uf != null && !uf.trim().isEmpty()) {
+            if (sb.length() > 0) sb.append("/");
+            sb.append(uf);
+        }
+        if (cep != null && !cep.trim().isEmpty()) {
+            if (sb.length() > 0) sb.append(" - CEP: ");
+            sb.append(formatarCep(cep));
+        }
+        
+        return sb.length() > 0 ? sb.toString() : "Endereço não disponível";
+    }
+
+    // Método para formatar CEP
+    private String formatarCep(String cep) {
+        if (cep == null || cep.length() != 8) return cep;
+        return cep.substring(0, 5) + "-" + cep.substring(5);
     }
 
     // Getters e Setters
@@ -92,6 +143,9 @@ public class Endereco {
     public boolean isErro() { return erro; }
     public void setErro(boolean erro) { this.erro = erro; }
 
+    public String getMensagemErro() { return mensagemErro; }
+    public void setMensagemErro(String mensagemErro) { this.mensagemErro = mensagemErro; }
+
     public Double getLatitude() { return latitude; }
     public void setLatitude(Double latitude) { this.latitude = latitude; }
 
@@ -100,6 +154,10 @@ public class Endereco {
 
     @Override
     public String toString() {
+        if (erro) {
+            return "Endereco{erro=true, mensagem='" + mensagemErro + "'}";
+        }
+        
         return "Endereco{" +
                 "cep='" + cep + '\'' +
                 ", logradouro='" + logradouro + '\'' +
@@ -107,13 +165,8 @@ public class Endereco {
                 ", bairro='" + bairro + '\'' +
                 ", localidade='" + localidade + '\'' +
                 ", uf='" + uf + '\'' +
-                ", ibge='" + ibge + '\'' +
-                ", gia='" + gia + '\'' +
-                ", ddd='" + ddd + '\'' +
-                ", siafi='" + siafi + '\'' +
-                ", latitude=" + latitude +
-                ", longitude=" + longitude +
-                ", erro=" + erro +
+                (latitude != null ? ", latitude=" + latitude : "") +
+                (longitude != null ? ", longitude=" + longitude : "") +
                 '}';
     }
 }

@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.css" />
     <style>
         * {
             margin: 0;
@@ -31,7 +32,80 @@
             z-index: 1;
         }
         
-        /* Painel de busca compacto */
+        /* Painel de navegação COMPACTO para mobile */
+        .nav-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            padding: 10px;
+            display: none;
+        }
+        
+        .nav-panel.active {
+            display: block;
+        }
+        
+        .nav-instruction {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-instruction .icon {
+            font-size: 24px;
+            color: #667eea;
+            min-width: 28px;
+        }
+        
+        .nav-instruction .text {
+            flex: 1;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        
+        .nav-instruction .distance {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            min-width: 50px;
+            text-align: right;
+        }
+        
+        .nav-stats {
+            display: flex;
+            gap: 6px;
+            justify-content: space-around;
+            padding: 6px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 10px;
+        }
+        
+        .nav-stats .stat {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .nav-stats .value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .nav-stats .label {
+            font-size: 9px;
+            color: #666;
+            margin-top: 2px;
+        }
+        
+        /* Painel de busca */
         .search-panel {
             position: fixed;
             top: 10px;
@@ -79,35 +153,6 @@
             transform: translateY(-50%);
             color: #667eea;
             font-size: 18px;
-        }
-        
-        .location-type {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-        
-        .location-type button {
-            flex: 1;
-            padding: 10px;
-            border: 2px solid #e9ecef;
-            background: white;
-            border-radius: 10px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .location-type button.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-        
-        .selected-locations {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 12px;
         }
         
         .location-item {
@@ -165,68 +210,7 @@
             color: #666;
         }
         
-        /* Painel de navegação */
-        .nav-panel {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 15px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            padding: 15px;
-            display: none;
-        }
-        
-        .nav-panel.active {
-            display: block;
-        }
-        
-        .nav-instruction {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-        
-        .nav-instruction .icon {
-            font-size: 36px;
-            color: #667eea;
-            min-width: 40px;
-        }
-        
-        .nav-instruction .text {
-            flex: 1;
-        }
-        
-        .nav-instruction .distance {
-            font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
-        }
-        
-        .nav-stats {
-            display: flex;
-            gap: 10px;
-            justify-content: space-around;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            font-size: 12px;
-        }
-        
-        .nav-stats .stat {
-            text-align: center;
-        }
-        
-        .nav-stats .value {
-            font-size: 18px;
-            font-weight: bold;
-            color: #667eea;
-        }
-        
-        /* Controles flutuantes otimizados */
+        /* Controles flutuantes */
         .floating-controls {
             position: fixed;
             bottom: 20px;
@@ -263,11 +247,6 @@
             height: 64px;
         }
         
-        .control-btn.danger {
-            background: #dc3545;
-            color: white;
-        }
-        
         /* Toggle de busca */
         .search-toggle {
             position: fixed;
@@ -294,7 +273,7 @@
             left: 15px;
             z-index: 1000;
             background: white;
-            padding: 12px 20px;
+            padding: 10px 16px;
             border-radius: 50px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             display: none;
@@ -305,13 +284,75 @@
         }
         
         .speed-value {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: bold;
             color: #667eea;
         }
         
         .speed-unit {
-            font-size: 14px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* GPS Status */
+        .gps-status {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 999;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .gps-status.active {
+            background: #28a745;
+            color: white;
+        }
+        
+        .gps-status.inactive {
+            background: #dc3545;
+            color: white;
+        }
+        
+        /* Bússola */
+        .compass-indicator {
+            position: fixed;
+            top: 80px;
+            right: 15px;
+            z-index: 999;
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .compass-indicator.active {
+            display: flex;
+        }
+        
+        .compass-needle {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 30px solid #dc3545;
+            position: absolute;
+            transition: transform 0.3s ease;
+            transform-origin: center 20px;
+        }
+        
+        .compass-label {
+            position: absolute;
+            font-size: 10px;
+            font-weight: bold;
             color: #666;
         }
         
@@ -351,60 +392,7 @@
             50% { transform: translate(-50%, -50%) scale(1.05); }
         }
         
-        /* GPS Status */
-        .gps-status {
-            position: fixed;
-            top: 15px;
-            right: 15px;
-            z-index: 999;
-            background: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .gps-status.active {
-            background: #28a745;
-            color: white;
-        }
-        
-        .gps-status.inactive {
-            background: #dc3545;
-            color: white;
-        }
-        
-        /* Histórico compacto */
-        .history-list {
-            max-height: 250px;
-            overflow-y: auto;
-        }
-        
-        .history-item {
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        
-        .history-item:active {
-            background: #e9ecef;
-        }
-        
-        .history-item .name {
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-        
-        .history-item .details {
-            color: #666;
-            font-size: 11px;
-        }
-        
-        /* Botões de ação rápida */
+        /* Botões de ação */
         .quick-actions {
             display: flex;
             gap: 8px;
@@ -425,27 +413,9 @@
             color: white;
         }
         
-        .btn-recalculate {
-            background: #ff9800;
-            color: white;
-        }
-        
         .btn-clear {
             background: #dc3545;
             color: white;
-        }
-        
-        /* Animação de pulse para marcador */
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
-            }
-            70% {
-                box-shadow: 0 0 0 15px rgba(0, 123, 255, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
-            }
         }
         
         /* Loading */
@@ -465,7 +435,7 @@
             to { transform: rotate(360deg); }
         }
         
-        /* Scrollbar customizada */
+        /* Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -481,80 +451,44 @@
     </style>
 </head>
 <body>
-    <!-- Mapa (sempre visível) -->
     <div id="map"></div>
     
-    <!-- GPS Status -->
     <div id="gpsStatus" class="gps-status inactive">
         <i class="fas fa-satellite-dish"></i> GPS OFF
     </div>
     
-    <!-- Toggle de Busca -->
+    <!-- Bússola -->
+    <div id="compassIndicator" class="compass-indicator">
+        <div class="compass-needle" id="compassNeedle"></div>
+        <span class="compass-label" style="top: 5px;">N</span>
+    </div>
+    
     <div class="search-toggle" onclick="toggleSearchPanel()">
         <i class="fas fa-search"></i>
     </div>
     
-    <!-- Painel de Busca -->
     <div id="searchPanel" class="search-panel" style="display: none;">
         <div class="search-header">
-            <h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> Buscar Local</h6>
+            <h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> Buscar Destino</h6>
             <i class="fas fa-times" onclick="toggleSearchPanel()" style="cursor: pointer;"></i>
         </div>
         <div class="search-content">
-            <!-- Busca Rápida -->
             <div class="quick-search">
-                <input type="text" id="inputBusca" placeholder="Digite endereço, CEP ou coordenadas..." autocomplete="off">
+                <input type="text" id="inputBusca" placeholder="Digite endereço ou CEP..." autocomplete="off">
                 <i class="fas fa-search search-icon"></i>
             </div>
             
-            <!-- Tipo de Localização -->
-            <div class="location-type">
-                <button id="btnOrigem" onclick="setLocationMode('origem')">
-                    <i class="fas fa-circle"></i> Origem
-                </button>
-                <button id="btnDestino" onclick="setLocationMode('destino')">
-                    <i class="fas fa-flag-checkered"></i> Destino
-                </button>
+            <div class="location-item" id="destinoDisplay">
+                <span class="icon">🏁</span>
+                <span class="text" id="destinoText">Nenhum destino</span>
+                <i class="fas fa-times-circle clear" onclick="clearDestino()" style="display: none;"></i>
             </div>
             
-            <!-- Locais Selecionados -->
-            <div class="selected-locations">
-                <div class="location-item" id="origemDisplay">
-                    <span class="icon">📍</span>
-                    <span class="text" id="origemText">Nenhuma origem</span>
-                    <i class="fas fa-times-circle clear" onclick="clearOrigem()" style="display: none;"></i>
-                </div>
-                <div class="location-item" id="destinoDisplay">
-                    <span class="icon">🏁</span>
-                    <span class="text" id="destinoText">Nenhum destino</span>
-                    <i class="fas fa-times-circle clear" onclick="clearDestino()" style="display: none;"></i>
-                </div>
-            </div>
-            
-            <!-- Resultados da Busca -->
             <div id="searchResults" class="search-results"></div>
             
-            <!-- Histórico -->
-            <div th:if="${historico != null && !historico.empty}">
-                <h6 class="mt-3 mb-2"><i class="fas fa-history"></i> Recentes</h6>
-                <div class="history-list">
-                    <div th:each="endereco : ${historico}" class="history-item" 
-                         th:data-cep="${endereco.cep}" 
-                         th:data-endereco="${endereco.logradouro} + ', ' + ${endereco.localidade}"
-                         onclick="selectFromHistory(this)">
-                        <div class="name" th:text="${endereco.logradouro}">Endereço</div>
-                        <div class="details">
-                            <span th:text="${endereco.localidade} + ' - ' + ${endereco.uf}">Cidade</span> • 
-                            <span th:text="${endereco.cep}">CEP</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Ações Rápidas -->
             <div class="quick-actions">
-                <button class="btn-calculate" onclick="calcularRota()" id="btnCalcular" disabled>
-                    <i class="fas fa-route"></i> Calcular
+                <button class="btn-calculate" onclick="iniciarNavegacao()" id="btnCalcular" disabled>
+                    <i class="fas fa-route"></i> Navegar
                 </button>
                 <button class="btn-clear" onclick="limparTudo()">
                     <i class="fas fa-trash"></i> Limpar
@@ -563,40 +497,37 @@
         </div>
     </div>
     
-    <!-- Painel de Navegação -->
     <div id="navPanel" class="nav-panel">
         <div class="nav-instruction">
             <div class="icon" id="navIcon">
                 <i class="fas fa-arrow-up"></i>
             </div>
             <div class="text">
-                <div id="navText" style="font-size: 14px; font-weight: 600;">Iniciando navegação...</div>
+                <div id="navText">Iniciando navegação...</div>
             </div>
             <div class="distance" id="navDistance">--</div>
         </div>
         <div class="nav-stats">
             <div class="stat">
                 <div class="value" id="etaTime">--:--</div>
-                <div>Chegada</div>
+                <div class="label">Chegada</div>
             </div>
             <div class="stat">
                 <div class="value" id="remainingDistance">--</div>
-                <div>Distância</div>
+                <div class="label">Distância</div>
             </div>
             <div class="stat">
                 <div class="value" id="remainingTime">--</div>
-                <div>Tempo</div>
+                <div class="label">Tempo</div>
             </div>
         </div>
     </div>
     
-    <!-- Velocímetro -->
     <div id="speedDisplay" class="speed-display">
         <span class="speed-value" id="speedValue">0</span>
         <span class="speed-unit">km/h</span>
     </div>
     
-    <!-- Alerta de Manobra -->
     <div id="maneuverAlert" class="maneuver-alert">
         <div class="icon" id="alertIcon">
             <i class="fas fa-arrow-right"></i>
@@ -604,15 +535,17 @@
         <div class="text" id="alertText">Vire à direita</div>
     </div>
     
-    <!-- Controles Flutuantes -->
     <div class="floating-controls">
         <button class="control-btn primary" id="btnNav" onclick="toggleNavigation()" title="Navegação">
             <i class="fas fa-play"></i>
         </button>
+        <button class="control-btn" onclick="toggleRotacao()" id="btnRotacao" title="Rotação 3D">
+            <i class="fas fa-compass"></i>
+        </button>
         <button class="control-btn" onclick="recalcularRota()" id="btnRecalc" title="Recalcular" style="display: none;">
             <i class="fas fa-redo"></i>
         </button>
-        <button class="control-btn" onclick="centralizarUsuario()" title="Minha Posição">
+        <button class="control-btn" onclick="centralizarUsuario()" title="Seguir Posição">
             <i class="fas fa-crosshairs"></i>
         </button>
         <button class="control-btn" onclick="iniciarGPS()" id="btnGPS" title="GPS">
@@ -622,41 +555,40 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
     
-    <script th:inline="javascript">
-        // Variáveis globais
+    <script>
         var map;
         var userMarker = null;
-        var originMarker = null;
         var destinationMarker = null;
         var routePolyline = null;
         var watchId = null;
         var isGPSActive = false;
         var isNavigating = false;
-        var locationMode = 'origem'; // 'origem' ou 'destino'
-        var origemData = null;
         var destinoData = null;
-        var rotaData = /*[[${rota}]]*/ null;
+        var rotaData = null;
         var currentPosition = null;
         var searchTimeout = null;
+        var recalcularTimeout = null;
+        var currentHeading = 0;
+        var seguirUsuario = false;
+        var modoRotacao = false;
+        var autoFollow = true; // Nova variável para controle automático de foco
 
-        // Inicialização
         window.onload = function() {
             inicializarMapa();
             configurarEventos();
-            
-            if (rotaData) {
-                processarRota();
-                mostrarBotaoRecalcular();
-            }
-            
-            // Ativar GPS automaticamente
             setTimeout(() => iniciarGPS(), 1000);
         };
 
         function inicializarMapa() {
             map = L.map('map', {
-                zoomControl: false
+                zoomControl: false,
+                rotate: true,
+                rotateControl: false,
+                bearing: 0,
+                touchRotate: true,
+                compassBearing: true
             }).setView([-15.7797, -47.9297], 13);
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -664,10 +596,17 @@
                 maxZoom: 19
             }).addTo(map);
             
-            // Adicionar controle de zoom no canto inferior esquerdo
             L.control.zoom({
                 position: 'bottomleft'
             }).addTo(map);
+            
+            // Adicionar suporte a rotação manual (dois dedos)
+            map.on('rotate', function(e) {
+                if (!modoRotacao) {
+                    // Permitir rotação manual mas não forçar seguimento
+                    console.log('Mapa rotacionado manualmente: ' + e.bearing + '°');
+                }
+            });
         }
 
         function configurarEventos() {
@@ -683,15 +622,8 @@
                     document.getElementById('searchResults').innerHTML = '';
                 }
             });
-            
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    buscarLocal(e.target.value);
-                }
-            });
         }
 
-        // GPS Functions
         function iniciarGPS() {
             if (!navigator.geolocation) {
                 alert('GPS não disponível neste dispositivo');
@@ -699,7 +631,6 @@
             }
 
             if (isGPSActive) {
-                // Desativar GPS
                 if (watchId) {
                     navigator.geolocation.clearWatch(watchId);
                 }
@@ -708,7 +639,6 @@
                 document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-satellite-dish"></i> GPS OFF';
                 document.getElementById('speedDisplay').classList.remove('active');
             } else {
-                // Ativar GPS
                 watchId = navigator.geolocation.watchPosition(
                     atualizarPosicao,
                     erroGPS,
@@ -729,30 +659,40 @@
         function atualizarPosicao(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            const speed = (position.coords.speed || 0) * 3.6; // m/s para km/h
+            const speed = (position.coords.speed || 0) * 3.6;
             
             currentPosition = { lat, lng };
             
-            // Atualizar velocímetro
             document.getElementById('speedValue').textContent = Math.round(speed);
             
-            // Atualizar marcador
             if (!userMarker) {
                 userMarker = L.marker([lat, lng], {
                     icon: L.divIcon({
                         className: 'user-marker',
-                        html: '<div style="width: 20px; height: 20px; background: #007bff; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 0 rgba(0, 123, 255, 0.4); animation: pulse 2s infinite;"></div>',
+                        html: '<div style="width: 20px; height: 20px; background: #007bff; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
                         iconSize: [20, 20]
                     })
                 }).addTo(map);
                 
+                // Centralizar no usuário com zoom adequado
                 map.setView([lat, lng], 16);
             } else {
                 userMarker.setLatLng([lat, lng]);
+                
+                // Seguir automaticamente o usuário se estiver navegando
+                if (isNavigating && autoFollow) {
+                    // Centralizar no usuário mantendo o zoom atual
+                    map.setView([lat, lng], map.getZoom());
+                }
             }
             
-            // Se estiver navegando, verificar progresso
+            // RECALCULAR AUTOMATICAMENTE se navegando e passaram 30 segundos
             if (isNavigating && rotaData) {
+                clearTimeout(recalcularTimeout);
+                recalcularTimeout = setTimeout(() => {
+                    recalcularRotaAutomatico();
+                }, 30000); // 30 segundos
+                
                 verificarProgresso(lat, lng);
             }
         }
@@ -765,29 +705,65 @@
 
         function centralizarUsuario() {
             if (currentPosition) {
-                map.setView([currentPosition.lat, currentPosition.lng], 16);
+                autoFollow = !autoFollow;
+                
+                const btn = document.querySelector('[onclick="centralizarUsuario()"]');
+                if (autoFollow) {
+                    btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    btn.style.color = 'white';
+                    map.setView([currentPosition.lat, currentPosition.lng], 17);
+                } else {
+                    btn.style.background = 'white';
+                    btn.style.color = '#333';
+                    // Não altera a visualização quando desativado
+                }
             } else {
                 alert('GPS não está ativo');
             }
         }
+        
+        function toggleRotacao() {
+            modoRotacao = !modoRotacao;
+            
+            const btn = document.getElementById('btnRotacao');
+            const compass = document.getElementById('compassIndicator');
+            
+            if (modoRotacao) {
+                btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                btn.style.color = 'white';
+                autoFollow = true;
+                compass.classList.add('active');
+                
+                // Ativar rotação
+                if (currentHeading !== null) {
+                    map.setBearing(-currentHeading);
+                    updateCompassNeedle(currentHeading);
+                }
+                
+                // Ativar seguimento da câmera
+                const btnSeguir = document.querySelector('[onclick="centralizarUsuario()"]');
+                btnSeguir.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                btnSeguir.style.color = 'white';
+            } else {
+                btn.style.background = 'white';
+                btn.style.color = '#333';
+                compass.classList.remove('active');
+                
+                // Resetar rotação
+                map.setBearing(0);
+            }
+        }
+        
+        function updateCompassNeedle(heading) {
+            const needle = document.getElementById('compassNeedle');
+            if (needle && heading !== null) {
+                needle.style.transform = `rotate(${heading}deg)`;
+            }
+        }
 
-        // Search Functions
         function toggleSearchPanel() {
             const panel = document.getElementById('searchPanel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function setLocationMode(mode) {
-            locationMode = mode;
-            
-            document.getElementById('btnOrigem').classList.remove('active');
-            document.getElementById('btnDestino').classList.remove('active');
-            
-            if (mode === 'origem') {
-                document.getElementById('btnOrigem').classList.add('active');
-            } else {
-                document.getElementById('btnDestino').classList.add('active');
-            }
         }
 
         function buscarLocal(query) {
@@ -800,15 +776,8 @@
             
             resultsDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i></div>';
             
-            // Verificar se é coordenada
-            if (/^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(query)) {
-                const [lat, lng] = query.split(',').map(s => parseFloat(s.trim()));
-                mostrarResultadoCoordenada(lat, lng);
-                return;
-            }
-            
             // Buscar no Nominatim
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=8`)
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=8&countrycodes=br`)
                 .then(response => response.json())
                 .then(data => {
                     mostrarResultados(data);
@@ -830,7 +799,7 @@
             let html = '';
             resultados.forEach(r => {
                 html += `
-                    <div class="result-item" onclick='selecionarLocal(${r.lat}, ${r.lon}, "${r.display_name.replace(/'/g, "\\'")}");'>
+                    <div class="result-item" onclick='selecionarDestino(${r.lat}, ${r.lon}, "${r.display_name.replace(/'/g, "\\'")}");'>
                         <div class="name">${r.display_name.split(',')[0]}</div>
                         <div class="address">${r.display_name}</div>
                     </div>
@@ -840,81 +809,30 @@
             resultsDiv.innerHTML = html;
         }
 
-        function mostrarResultadoCoordenada(lat, lng) {
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-                .then(response => response.json())
-                .then(data => {
-                    const endereco = data.display_name || 'Localização';
-                    selecionarLocal(lat, lng, endereco);
-                })
-                .catch(console.error);
-        }
-
-        function selecionarLocal(lat, lng, endereco) {
-            const data = {
+        function selecionarDestino(lat, lng, endereco) {
+            destinoData = {
                 lat: parseFloat(lat),
                 lng: parseFloat(lng),
                 endereco: endereco
             };
             
-            if (locationMode === 'origem') {
-                origemData = data;
-                document.getElementById('origemText').textContent = endereco.split(',')[0];
-                document.querySelector('#origemDisplay .clear').style.display = 'block';
-                
-                if (originMarker) map.removeLayer(originMarker);
-                originMarker = L.marker([lat, lng], {
-                    icon: L.divIcon({
-                        className: 'origin-marker',
-                        html: '<div style="width: 16px; height: 16px; background: #28a745; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>'
-                    })
-                }).addTo(map);
-            } else {
-                destinoData = data;
-                document.getElementById('destinoText').textContent = endereco.split(',')[0];
-                document.querySelector('#destinoDisplay .clear').style.display = 'block';
-                
-                if (destinationMarker) map.removeLayer(destinationMarker);
-                destinationMarker = L.marker([lat, lng], {
-                    icon: L.icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41]
-                    })
-                }).addTo(map);
-            }
+            document.getElementById('destinoText').textContent = endereco.split(',')[0];
+            document.querySelector('#destinoDisplay .clear').style.display = 'block';
             
+            if (destinationMarker) map.removeLayer(destinationMarker);
+            destinationMarker = L.marker([lat, lng], {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41]
+                })
+            }).addTo(map);
+            
+            // Centralizar no destino com zoom adequado
             map.setView([lat, lng], 15);
             document.getElementById('searchResults').innerHTML = '';
             document.getElementById('inputBusca').value = '';
-            
-            verificarBotaoCalcular();
-        }
-
-        function selectFromHistory(element) {
-            const cep = element.getAttribute('data-cep');
-            const endereco = element.getAttribute('data-endereco');
-            
-            // Buscar coordenadas do CEP
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${endereco}&limit=1`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.length > 0) {
-                        selecionarLocal(data[0].lat, data[0].lon, endereco);
-                    }
-                })
-                .catch(console.error);
-        }
-
-        function clearOrigem() {
-            origemData = null;
-            document.getElementById('origemText').textContent = 'Nenhuma origem';
-            document.querySelector('#origemDisplay .clear').style.display = 'none';
-            if (originMarker) {
-                map.removeLayer(originMarker);
-                originMarker = null;
-            }
-            verificarBotaoCalcular();
+            document.getElementById('btnCalcular').disabled = false;
         }
 
         function clearDestino() {
@@ -925,44 +843,47 @@
                 map.removeLayer(destinationMarker);
                 destinationMarker = null;
             }
-            verificarBotaoCalcular();
+            document.getElementById('btnCalcular').disabled = true;
         }
 
         function limparTudo() {
-            clearOrigem();
             clearDestino();
             if (routePolyline) {
                 map.removeLayer(routePolyline);
                 routePolyline = null;
             }
-            document.getElementById('searchResults').innerHTML = '';
-            document.getElementById('inputBusca').value = '';
             rotaData = null;
-            esconderBotaoRecalcular();
-        }
-
-        function verificarBotaoCalcular() {
-            const btn = document.getElementById('btnCalcular');
-            if (origemData && destinoData) {
-                btn.disabled = false;
-            } else {
-                btn.disabled = true;
+            pararNavegacao();
+            document.getElementById('btnRecalc').style.display = 'none';
+            
+            // Voltar para a posição do usuário se disponível
+            if (currentPosition) {
+                map.setView([currentPosition.lat, currentPosition.lng], 16);
             }
         }
 
-        // Route Functions
-        function calcularRota() {
-            if (!origemData || !destinoData) {
-                alert('Selecione origem e destino');
+        function iniciarNavegacao() {
+            if (!currentPosition) {
+                alert('Aguarde o GPS se conectar');
                 return;
             }
+            
+            if (!destinoData) {
+                alert('Selecione um destino');
+                return;
+            }
+            
+            calcularRota();
+        }
+
+        function calcularRota() {
+            if (!currentPosition || !destinoData) return;
             
             const btn = document.getElementById('btnCalcular');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculando...';
             
-            // Usar OSRM para calcular rota
-            const url = `https://router.project-osrm.org/route/v1/driving/${origemData.lng},${origemData.lat};${destinoData.lng},${destinoData.lat}?overview=full&steps=true&geometries=polyline`;
+            const url = `https://router.project-osrm.org/route/v1/driving/${currentPosition.lng},${currentPosition.lat};${destinoData.lng},${destinoData.lat}?overview=full&steps=true&geometries=polyline`;
             
             fetch(url)
                 .then(response => response.json())
@@ -971,54 +892,60 @@
                         rotaData = processarRotaOSRM(data.routes[0]);
                         desenharRota(rotaData);
                         toggleSearchPanel();
-                        mostrarBotaoRecalcular();
+                        document.getElementById('btnRecalc').style.display = 'flex';
                         
-                        // Mostrar mensagem de sucesso
-                        alert(`Rota calculada!\nDistância: ${(rotaData.distance / 1000).toFixed(1)} km\nTempo: ${Math.round(rotaData.duration / 60)} min`);
+                        // Iniciar navegação automaticamente
+                        isNavigating = true;
+                        document.getElementById('navPanel').classList.add('active');
+                        document.getElementById('btnNav').innerHTML = '<i class="fas fa-stop"></i>';
+                        
+                        if (rotaData && rotaData.instrucoes && rotaData.instrucoes.length > 0) {
+                            atualizarInstrucaoNavegacao(0);
+                        }
+                        
+                        // Ativar seguimento automático
+                        autoFollow = true;
+                        const btnSeguir = document.querySelector('[onclick="centralizarUsuario()"]');
+                        btnSeguir.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                        btnSeguir.style.color = 'white';
                     } else {
                         alert('Não foi possível calcular a rota');
                     }
                     
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-route"></i> Calcular';
+                    btn.innerHTML = '<i class="fas fa-route"></i> Navegar';
                 })
                 .catch(error => {
                     console.error('Erro ao calcular rota:', error);
                     alert('Erro ao calcular rota. Tente novamente.');
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-route"></i> Calcular';
+                    btn.innerHTML = '<i class="fas fa-route"></i> Navegar';
+                });
+        }
+
+        function recalcularRotaAutomatico() {
+            if (!currentPosition || !destinoData) return;
+            
+            console.log('🔄 Recalculando rota automaticamente...');
+            
+            const url = `https://router.project-osrm.org/route/v1/driving/${currentPosition.lng},${currentPosition.lat};${destinoData.lng},${destinoData.lat}?overview=full&steps=true&geometries=polyline`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 'Ok' && data.routes.length > 0) {
+                        rotaData = processarRotaOSRM(data.routes[0]);
+                        desenharRota(rotaData);
+                        console.log('✓ Rota recalculada');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao recalcular:', error);
                 });
         }
 
         function recalcularRota() {
-            if (!currentPosition) {
-                alert('GPS não está ativo');
-                return;
-            }
-            
-            if (!destinoData) {
-                alert('Destino não definido');
-                return;
-            }
-            
-            // Usar posição atual como origem
-            origemData = {
-                lat: currentPosition.lat,
-                lng: currentPosition.lng,
-                endereco: 'Posição Atual'
-            };
-            
-            document.getElementById('origemText').textContent = 'Posição Atual';
-            
-            if (originMarker) map.removeLayer(originMarker);
-            originMarker = L.marker([currentPosition.lat, currentPosition.lng], {
-                icon: L.divIcon({
-                    className: 'origin-marker',
-                    html: '<div style="width: 16px; height: 16px; background: #28a745; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>'
-                })
-            }).addTo(map);
-            
-            calcularRota();
+            recalcularRotaAutomatico();
         }
 
         function processarRotaOSRM(route) {
@@ -1044,16 +971,13 @@
         }
 
         function desenharRota(rota) {
-            // Remover rota anterior
             if (routePolyline) {
                 map.removeLayer(routePolyline);
             }
             
-            // Decodificar polyline
             const coordinates = decodePolyline(rota.geometry);
             const latLngs = coordinates.map(coord => [coord[1], coord[0]]);
             
-            // Desenhar rota
             routePolyline = L.polyline(latLngs, {
                 color: '#007bff',
                 weight: 6,
@@ -1061,8 +985,22 @@
                 lineJoin: 'round'
             }).addTo(map);
             
-            // Ajustar visualização
-            map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+            // Ajustar o zoom para mostrar toda a rota, mas com foco no ponto azul
+            const bounds = routePolyline.getBounds();
+            
+            // Expandir os limites para incluir o usuário e destino com margem
+            if (userMarker) {
+                bounds.extend(userMarker.getLatLng());
+            }
+            if (destinationMarker) {
+                bounds.extend(destinationMarker.getLatLng());
+            }
+            
+            // Ajustar o mapa para mostrar toda a rota com uma margem
+            map.fitBounds(bounds, { 
+                padding: [50, 50],
+                maxZoom: 16 // Limitar o zoom máximo para não ficar muito distante
+            });
         }
 
         function decodePolyline(str, precision) {
@@ -1097,22 +1035,6 @@
             return coordinates;
         }
 
-        function processarRota() {
-            if (rotaData && rotaData.instrucoes) {
-                // Processar rota já existente do servidor
-                console.log('Rota carregada com', rotaData.instrucoes.length, 'instruções');
-            }
-        }
-
-        function mostrarBotaoRecalcular() {
-            document.getElementById('btnRecalc').style.display = 'flex';
-        }
-
-        function esconderBotaoRecalcular() {
-            document.getElementById('btnRecalc').style.display = 'none';
-        }
-
-        // Navigation Functions
         function toggleNavigation() {
             if (!rotaData) {
                 alert('Calcule uma rota primeiro');
@@ -1127,25 +1049,25 @@
             if (isNavigating) {
                 pararNavegacao();
             } else {
-                iniciarNavegacao();
+                isNavigating = true;
+                document.getElementById('navPanel').classList.add('active');
+                document.getElementById('btnNav').innerHTML = '<i class="fas fa-stop"></i>';
+                
+                if (rotaData && rotaData.instrucoes && rotaData.instrucoes.length > 0) {
+                    atualizarInstrucaoNavegacao(0);
+                }
+                
+                // Centralizar no usuário quando iniciar navegação
+                if (currentPosition) {
+                    map.setView([currentPosition.lat, currentPosition.lng], 16);
+                }
+                
+                // Ativar seguimento automático
+                autoFollow = true;
+                const btnSeguir = document.querySelector('[onclick="centralizarUsuario()"]');
+                btnSeguir.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                btnSeguir.style.color = 'white';
             }
-        }
-
-        function iniciarNavegacao() {
-            isNavigating = true;
-            document.getElementById('navPanel').classList.add('active');
-            document.getElementById('btnNav').innerHTML = '<i class="fas fa-stop"></i>';
-            
-            if (rotaData && rotaData.instrucoes && rotaData.instrucoes.length > 0) {
-                atualizarInstrucaoNavegacao(0);
-            }
-            
-            // Centralizar no usuário
-            if (currentPosition) {
-                map.setView([currentPosition.lat, currentPosition.lng], 16);
-            }
-            
-            console.log('Navegação iniciada');
         }
 
         function pararNavegacao() {
@@ -1153,12 +1075,19 @@
             document.getElementById('navPanel').classList.remove('active');
             document.getElementById('btnNav').innerHTML = '<i class="fas fa-play"></i>';
             
-            console.log('Navegação parada');
+            // Desativar seguimento automático
+            autoFollow = false;
+            const btnSeguir = document.querySelector('[onclick="centralizarUsuario()"]');
+            btnSeguir.style.background = 'white';
+            btnSeguir.style.color = '#333';
         }
+
+        var currentInstructionIndex = 0;
 
         function atualizarInstrucaoNavegacao(index) {
             if (!rotaData || !rotaData.instrucoes) return;
             
+            currentInstructionIndex = index;
             const instrucao = rotaData.instrucoes[index];
             if (!instrucao) return;
             
@@ -1186,7 +1115,7 @@
             document.getElementById('etaTime').textContent = eta.getHours().toString().padStart(2, '0') + ':' + eta.getMinutes().toString().padStart(2, '0');
             
             // Sintetizar voz
-            if ('speechSynthesis' in window) {
+            if ('speechSynthesis' in window && index === 0) {
                 const utterance = new SpeechSynthesisUtterance(instrucao.instrucao);
                 utterance.lang = 'pt-BR';
                 utterance.rate = 1.0;
@@ -1197,13 +1126,12 @@
         function verificarProgresso(lat, lng) {
             if (!rotaData || !rotaData.instrucoes) return;
             
-            // Calcular distância até o próximo ponto de instrução
-            // (Implementação simplificada - em produção usar algoritmo mais robusto)
-            
             let menorDistancia = Infinity;
-            let indiceMaisProximo = 0;
+            let indiceMaisProximo = currentInstructionIndex;
             
-            rotaData.instrucoes.forEach((instrucao, index) => {
+            // Verificar apenas instruções à frente
+            for (let i = currentInstructionIndex; i < rotaData.instrucoes.length; i++) {
+                const instrucao = rotaData.instrucoes[i];
                 if (instrucao.coordenadas) {
                     const dist = calcularDistancia(
                         lat, lng, 
@@ -1213,22 +1141,34 @@
                     
                     if (dist < menorDistancia) {
                         menorDistancia = dist;
-                        indiceMaisProximo = index;
+                        indiceMaisProximo = i;
                     }
-                }
-            });
-            
-            // Se chegou perto de um ponto de instrução (menos de 50m)
-            if (menorDistancia < 0.05) { // aproximadamente 50m
-                atualizarInstrucaoNavegacao(indiceMaisProximo);
-                
-                // Mostrar alerta se próximo (menos de 100m)
-                if (menorDistancia < 0.1 && indiceMaisProximo < rotaData.instrucoes.length - 1) {
-                    mostrarAlerta(rotaData.instrucoes[indiceMaisProximo].instrucao);
                 }
             }
             
-            // Verificar se chegou ao destino (menos de 20m)
+            // Avançar instrução automaticamente (50m)
+            if (indiceMaisProximo > currentInstructionIndex && menorDistancia < 0.05) {
+                atualizarInstrucaoNavegacao(indiceMaisProximo);
+                
+                // Falar nova instrução
+                if ('speechSynthesis' in window) {
+                    const instrucao = rotaData.instrucoes[indiceMaisProximo];
+                    const utterance = new SpeechSynthesisUtterance(instrucao.instrucao);
+                    utterance.lang = 'pt-BR';
+                    utterance.rate = 1.0;
+                    speechSynthesis.speak(utterance);
+                }
+            }
+            
+            // Alerta de proximidade (100m)
+            if (menorDistancia < 0.1 && menorDistancia > 0.05 && indiceMaisProximo < rotaData.instrucoes.length - 1) {
+                const proxInstrucao = rotaData.instrucoes[indiceMaisProximo + 1];
+                if (proxInstrucao) {
+                    mostrarAlerta('Em ' + Math.round(menorDistancia * 1000) + 'm: ' + proxInstrucao.instrucao);
+                }
+            }
+            
+            // Verificar chegada ao destino
             if (indiceMaisProximo === rotaData.instrucoes.length - 1 && menorDistancia < 0.02) {
                 mostrarChegada();
             }
@@ -1265,26 +1205,6 @@
                 speechSynthesis.speak(utterance);
             }
         }
-
-        // Prevenir zoom do iOS em inputs
-        document.querySelectorAll('input').forEach(input => {
-            input.addEventListener('focus', function() {
-                if (window.innerWidth < 768) {
-                    setTimeout(() => {
-                        window.scrollTo(0, 0);
-                        document.body.scrollTop = 0;
-                    }, 0);
-                }
-            });
-        });
-
-        // Prevenir comportamentos indesejados em mobile
-        document.addEventListener('touchmove', function(e) {
-            if (e.target.closest('#map')) {
-                // Permitir scroll no mapa
-                return;
-            }
-        }, { passive: true });
     </script>
 </body>
 </html>

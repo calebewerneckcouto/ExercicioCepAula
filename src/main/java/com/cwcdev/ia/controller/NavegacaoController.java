@@ -2,6 +2,7 @@ package com.cwcdev.ia.controller;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -12,6 +13,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.cwcdev.ia.model.Endereco;
 import com.cwcdev.ia.model.InstrucaoNavegacao;
@@ -37,6 +39,73 @@ public class NavegacaoController {
     private boolean navegacaoAtiva = false;
     private int instrucaoAtualIndex = 0;
     private PosicaoAtual posicaoUsuario;
+
+    /**
+     * API REST para buscar endereços (CEP ou texto)
+     */
+    @GetMapping("/api/buscar")
+    @ResponseBody
+    public List<Endereco> buscarEnderecos(@RequestParam String query) {
+        System.out.println("🔍 Buscando: " + query);
+        List<Endereco> resultados = navegacaoService.buscarEnderecos(query);
+        System.out.println("✓ Encontrados: " + resultados.size() + " resultados");
+        return resultados;
+    }
+
+    /**
+     * API REST para calcular rota (origem GPS automática)
+     */
+    @PostMapping("/api/calcular-rota")
+    @ResponseBody
+    public Rota calcularRotaAPI(
+            @RequestParam double origemLat,
+            @RequestParam double origemLng,
+            @RequestParam double destinoLat,
+            @RequestParam double destinoLng) {
+        
+        try {
+            System.out.println("=== CALCULANDO ROTA ===");
+            
+            // Criar origem a partir da posição GPS
+            Endereco origem = new Endereco();
+            origem.setCep("GPS");
+            origem.setLogradouro("Posição Atual");
+            origem.setLocalidade("GPS");
+            origem.setUf("GPS");
+            origem.setLatitude(origemLat);
+            origem.setLongitude(origemLng);
+            origem.setErro(false);
+            
+            // Criar destino
+            Endereco destino = new Endereco();
+            destino.setLatitude(destinoLat);
+            destino.setLongitude(destinoLng);
+            destino.setErro(false);
+            
+            System.out.println("📍 Origem GPS: " + origemLat + ", " + origemLng);
+            System.out.println("🏁 Destino: " + destinoLat + ", " + destinoLng);
+            
+            rotaAtual = navegacaoService.calcularRota(origem, destino);
+            
+            if (rotaAtual != null) {
+                System.out.println("✓ Rota calculada!");
+                System.out.println("  - Distância: " + String.format("%.1f km", rotaAtual.getDistancia() / 1000));
+                System.out.println("  - Duração: " + String.format("%.0f min", rotaAtual.getDuracao() / 60));
+                System.out.println("  - Instruções: " + rotaAtual.getInstrucoes().size());
+                
+                navegacaoAtiva = false;
+                instrucaoAtualIndex = 0;
+                
+                return rotaAtual;
+            } else {
+                throw new RuntimeException("Não foi possível calcular a rota");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("✗ Erro ao calcular rota: " + e.getMessage());
+            throw new RuntimeException("Erro ao calcular rota: " + e.getMessage());
+        }
+    }
 
     @PostMapping("/buscar-cep")
     public String buscarPorCep(@RequestParam String cep, Model model) {
@@ -93,17 +162,10 @@ public class NavegacaoController {
                 return "index";
             }
             
-            System.out.println("Calculando rota entre coordenadas...");
-            System.out.println("Origem coord: " + origem.getLatitude() + ", " + origem.getLongitude());
-            System.out.println("Destino coord: " + destino.getLatitude() + ", " + destino.getLongitude());
-            
             rotaAtual = navegacaoService.calcularRota(origem, destino);
             
             if (rotaAtual != null) {
                 System.out.println("✓ Rota calculada com sucesso!");
-                System.out.println("  - Distância: " + (rotaAtual.getDistancia() / 1000) + " km");
-                System.out.println("  - Duração: " + (rotaAtual.getDuracao() / 60) + " min");
-                System.out.println("  - Instruções: " + rotaAtual.getInstrucoes().size());
                 
                 adicionarAoHistorico(origem);
                 adicionarAoHistorico(destino);
@@ -111,7 +173,6 @@ public class NavegacaoController {
                 model.addAttribute("sucessoRota", "Rota calculada! Distância: " + 
                     String.format("%.2f", rotaAtual.getDistancia() / 1000) + " km");
                 
-                // Resetar navegação
                 navegacaoAtiva = false;
                 instrucaoAtualIndex = 0;
             } else {
@@ -137,7 +198,6 @@ public class NavegacaoController {
     // Método auxiliar para criar Endereco a partir de coordenadas
     private Endereco criarEnderecoDeCoordenadas(String coordString) {
         try {
-            // Formato: COORD:lat,lng
             String coordPart = coordString.replace("COORD:", "");
             String[] parts = coordPart.split(",");
             
@@ -234,7 +294,6 @@ public class NavegacaoController {
             if (rotaAtual != null && navegacaoAtiva && 
                 instrucaoAtualIndex < rotaAtual.getInstrucoes().size()) {
                 
-                // CORREÇÃO: usando tipo explícito em vez de var
                 InstrucaoNavegacao instrucaoAtual = rotaAtual.getInstrucoes().get(instrucaoAtualIndex);
                 
                 if (instrucaoAtual.getLatitude() != null && instrucaoAtual.getLongitude() != null) {
@@ -309,22 +368,21 @@ public class NavegacaoController {
         return "index";
     }
 
-    // Métodos auxiliares
+    // Métodos auxiliares usando Streams Java 8
     
     private void adicionarAoHistorico(Endereco endereco) {
-        // Evitar duplicatas - usando loop tradicional para Java 1.8
-        boolean existe = false;
-        for (Endereco e : historicoGeral) {
-            if (e.getCep() != null && e.getCep().equals(endereco.getCep())) {
-                existe = true;
-                break;
-            }
-        }
+        // Usar Stream para evitar duplicatas
+        boolean existe = historicoGeral.stream()
+            .anyMatch(e -> e.getCep() != null && e.getCep().equals(endereco.getCep()));
         
         if (!existe) {
             historicoGeral.add(0, endereco);
+            
+            // Manter apenas 10 últimos usando Stream
             if (historicoGeral.size() > 10) {
-                historicoGeral = new ArrayList<>(historicoGeral.subList(0, 10));
+                historicoGeral = historicoGeral.stream()
+                    .limit(10)
+                    .collect(Collectors.toList());
             }
         }
     }
@@ -359,6 +417,9 @@ public class NavegacaoController {
         }
     }
 
+    /**
+     * Calcula distância usando fórmula de Haversine
+     */
     private double calcularDistancia(double lat1, double lon1, double lat2, double lon2) {
         final int R = 6371000; // Raio da Terra em metros
         double dLat = Math.toRadians(lat2 - lat1);
