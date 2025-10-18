@@ -8,24 +8,23 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.18</version> <!-- Versão compatível com Java 8 -->
+        <version>2.7.18</version>
         <relativePath/>
     </parent>
     
-    <groupId>com.cwcdev</groupId>
-    <artifactId>gps</artifactId>
+    <groupId>com.rotas</groupId>
+    <artifactId>sistema-rotas</artifactId>
     <version>1.0.0</version>
     <name>gps</name>
-    <description>Consulta de CEP com ViaCEP API</description>
+    <description>Sistema de GPS com Geocodificação e Cálculo de Rotas</description>
     
-    <!-- Alterando para pacote WAR -->
     <packaging>war</packaging>
     
     <properties>
         <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <!-- Nome do arquivo WAR -->
+        <!-- Nome do arquivo WAR alterado para gps -->
         <final.name>gps</final.name>
     </properties>
     
@@ -42,7 +41,28 @@
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
         
-        <!-- WebSocket para comunicação em tempo real -->
+        <!-- Spring Data JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        
+        <!-- Banco de Dados H2 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        
+        <!-- MySQL Driver -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.33</version>
+            <scope>runtime</scope>
+        </dependency>
+        
+        <!-- WebSocket -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
@@ -54,27 +74,59 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
         
-        <!-- Dependência para Servlet API (necessária para WAR) -->
+        <!-- JSON.org (ESSENCIAL para JSONArray e JSONObject) -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20231013</version>
+        </dependency>
+        
+        <!-- HttpClient para chamadas REST -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.14</version>
+        </dependency>
+        
+        <!-- Validation API -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        
+        <!-- Dependência para Servlet API -->
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
             <scope>provided</scope>
         </dependency>
         
-        <!-- Spring Boot Starter Tomcat (provided para WAR) -->
+        <!-- Spring Boot Starter Tomcat -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-tomcat</artifactId>
             <scope>provided</scope>
         </dependency>
+        
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     
     <build>
+        <!-- Nome final do WAR alterado para gps -->
         <finalName>gps</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Nome do arquivo final -->
+                    <finalName>gps</finalName>
+                </configuration>
             </plugin>
             
             <plugin>
@@ -97,13 +149,14 @@
                 </configuration>
             </plugin>
             
-            <!-- Plugin para garantir o empacotamento WAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-war-plugin</artifactId>
                 <version>3.3.2</version>
                 <configuration>
+                    <!-- Nome do WAR definido como gps -->
                     <warName>gps</warName>
+                    <failOnMissingWebXml>false</failOnMissingWebXml>
                 </configuration>
             </plugin>
         </plugins>
