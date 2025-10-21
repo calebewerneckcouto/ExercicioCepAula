@@ -5,17 +5,14 @@ import com.cwcdev.ia.model.Rota;
 import com.cwcdev.ia.service.EnderecoService;
 import com.cwcdev.ia.service.RotaService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus; // Importação correta do Spring
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/rotas")
-@CrossOrigin(origins = "*")
 public class RotaController {
     
     @Autowired
@@ -27,79 +24,89 @@ public class RotaController {
     @PostMapping("/calcular")
     public ResponseEntity<?> calcularRota(@RequestBody Map<String, Object> request) {
         try {
-            // Utilizando casts seguros, assumindo que a entrada do JSON é Map<String, String>
-            @SuppressWarnings("unchecked")
-            Map<String, String> origemMap = (Map<String, String>) request.get("origem");
-            @SuppressWarnings("unchecked")
-            Map<String, String> destinoMap = (Map<String, String>) request.get("destino");
+            System.out.println("Recebendo requisição de rota: " + request);
             
-            // Validação básica de entrada
+            // Extrai origem e destino
+            Map<String, Object> origemMap = (Map<String, Object>) request.get("origem");
+            Map<String, Object> destinoMap = (Map<String, Object>) request.get("destino");
+            
             if (origemMap == null || destinoMap == null) {
-                throw new IllegalArgumentException("Origem e destino são obrigatórios no corpo da requisição.");
+                return ResponseEntity.badRequest().body("Origem e destino são obrigatórios");
             }
             
-            // Criar endereço de origem
+            // Cria e SALVA endereço de origem primeiro
             Endereco origem = new Endereco();
-            origem.setRua(origemMap.get("rua"));
-            origem.setNumero(origemMap.get("numero"));
-            origem.setBairro(origemMap.get("bairro"));
-            origem.setCidade(origemMap.get("cidade"));
-            origem.setEstado(origemMap.get("estado"));
+            origem.setRua(getStringValue(origemMap, "rua"));
+            origem.setNumero(getStringValue(origemMap, "numero"));
+            origem.setBairro(getStringValue(origemMap, "bairro"));
+            origem.setCidade(getStringValue(origemMap, "cidade"));
+            origem.setEstado(getStringValue(origemMap, "estado"));
             
-            // Criar endereço de destino
-            Endereco destino = new Endereco();
-            destino.setRua(destinoMap.get("rua"));
-            destino.setNumero(destinoMap.get("numero"));
-            destino.setBairro(destinoMap.get("bairro"));
-            destino.setCidade(destinoMap.get("cidade"));
-            destino.setEstado(destinoMap.get("estado"));
+            // Se tem coordenadas, usa elas
+            if (origemMap.get("latitude") != null && origemMap.get("longitude") != null) {
+                origem.setLatitude(Double.parseDouble(origemMap.get("latitude").toString()));
+                origem.setLongitude(Double.parseDouble(origemMap.get("longitude").toString()));
+            }
             
-            // Os serviços abaixo garantirão a geocodificação e o cálculo sem restrição de país/município
+            // SALVA a origem primeiro
             origem = enderecoService.salvarEndereco(origem);
+            
+            // Cria e SALVA endereço de destino
+            Endereco destino = new Endereco();
+            destino.setRua(getStringValue(destinoMap, "rua"));
+            destino.setNumero(getStringValue(destinoMap, "numero"));
+            destino.setBairro(getStringValue(destinoMap, "bairro"));
+            destino.setCidade(getStringValue(destinoMap, "cidade"));
+            destino.setEstado(getStringValue(destinoMap, "estado"));
+            
+            // Se tem coordenadas, usa elas
+            if (destinoMap.get("latitude") != null && destinoMap.get("longitude") != null) {
+                destino.setLatitude(Double.parseDouble(destinoMap.get("latitude").toString()));
+                destino.setLongitude(Double.parseDouble(destinoMap.get("longitude").toString()));
+            }
+            
+            // SALVA o destino primeiro
             destino = enderecoService.salvarEndereco(destino);
             
-            // Calcular rota
+            System.out.println("Origem salva: " + origem);
+            System.out.println("Destino salvo: " + destino);
+            
+            // Verifica se temos coordenadas
+            if (origem.getLatitude() == null || destino.getLatitude() == null) {
+                return ResponseEntity.badRequest().body("Não foi possível obter coordenadas para origem ou destino");
+            }
+            
+            // Calcula rota
             Rota rota = rotaService.calcularRota(origem, destino);
-            rota = rotaService.salvarRota(rota);
+            Rota rotaSalva = rotaService.salvarRota(rota);
             
             Map<String, Object> response = new HashMap<>();
-            response.put("rota", rota);
+            response.put("rota", rotaSalva);
             response.put("origem", origem);
             response.put("destino", destino);
             
             return ResponseEntity.ok(response);
             
-        } catch (IllegalArgumentException e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("erro", "Dados inválidos: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         } catch (Exception e) {
-            // MELHORIA: Usando a constante do Spring HttpStatus.BAD_REQUEST
-            Map<String, String> error = new HashMap<>();
-            error.put("erro", "Falha no cálculo da rota: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            System.err.println("Erro ao calcular rota: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body("Erro ao calcular rota: " + e.getMessage());
         }
     }
     
-    @GetMapping
-    public ResponseEntity<List<Rota>> listarRotas() {
-        return ResponseEntity.ok(rotaService.buscarTodasRotas());
+    private String getStringValue(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        return value != null ? value.toString() : null;
     }
     
-    @GetMapping("/{id}")
-    public ResponseEntity<Rota> buscarRotaPorId(@PathVariable Long id) {
+    @GetMapping
+    public ResponseEntity<?> listarRotas() {
         try {
-            Optional<Rota> rotaOptional = rotaService.buscarRotaPorId(id);
-            
-            if (rotaOptional.isPresent()) {
-                return ResponseEntity.ok(rotaOptional.get());
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-            
-        } catch (RuntimeException e) {
-            // Em caso de falha de serviço ou de banco de dados, ainda retorna 404 para o cliente
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(rotaService.buscarTodasRotas());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Erro ao listar rotas: " + e.getMessage());
         }
     }
 }

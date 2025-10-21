@@ -32,23 +32,32 @@ public class RotaServiceImpl implements RotaService {
                 throw new IllegalArgumentException("Endereço de origem e destino são obrigatórios");
             }
             
+            // Persistir endereços ANTES de usar na rota
+            // Isso garante que ambos terão IDs
+            Endereco origemSalva = enderecoService.salvarEndereco(origem);
+            Endereco destinoSalvo = enderecoService.salvarEndereco(destino);
+            
             // Verificar se endereços possuem coordenadas
-            if (origem.getLatitude() == null || origem.getLongitude() == null) {
-                origem = enderecoService.geocodificarEndereco(origem);
+            if (origemSalva.getLatitude() == null || origemSalva.getLongitude() == null) {
+                origemSalva = enderecoService.geocodificarEndereco(origemSalva);
             }
             
-            if (destino.getLatitude() == null || destino.getLongitude() == null) {
-                destino = enderecoService.geocodificarEndereco(destino);
+            if (destinoSalvo.getLatitude() == null || destinoSalvo.getLongitude() == null) {
+                destinoSalvo = enderecoService.geocodificarEndereco(destinoSalvo);
             }
             
             // Verificar se rota já existe
-            Optional<Rota> rotaExistente = rotaRepository.findByOrigemAndDestino(origem, destino);
+            Optional<Rota> rotaExistente = rotaRepository.findByOrigemAndDestino(origemSalva, destinoSalvo);
             if (rotaExistente.isPresent()) {
                 return rotaExistente.get();
             }
             
             // Calcular rota usando serviço de roteamento
-            Rota rotaCalculada = routingService.calcularRota(origem, destino);
+            Rota rotaCalculada = routingService.calcularRota(origemSalva, destinoSalvo);
+            
+            // Garantir que a rota use os endereços persistidos
+            rotaCalculada.setOrigem(origemSalva);
+            rotaCalculada.setDestino(destinoSalvo);
             
             // Salvar no banco
             return salvarRota(rotaCalculada);
@@ -87,6 +96,17 @@ public class RotaServiceImpl implements RotaService {
         try {
             // Validar rota antes de salvar
             validarRota(rota);
+            
+            // Garantir que os endereços estão persistidos
+            if (rota.getOrigem().getId() == null) {
+                Endereco origemSalva = enderecoService.salvarEndereco(rota.getOrigem());
+                rota.setOrigem(origemSalva);
+            }
+            
+            if (rota.getDestino().getId() == null) {
+                Endereco destinoSalvo = enderecoService.salvarEndereco(rota.getDestino());
+                rota.setDestino(destinoSalvo);
+            }
             
             // Verificar duplicatas
             Optional<Rota> rotaExistente = rotaRepository.findByOrigemAndDestino(
@@ -186,12 +206,16 @@ public class RotaServiceImpl implements RotaService {
      * Valida se a rota está correta antes de salvar
      */
     private void validarRota(Rota rota) {
+        if (rota == null) {
+            throw new IllegalArgumentException("Rota é obrigatória");
+        }
         if (rota.getOrigem() == null) {
             throw new IllegalArgumentException("Endereço de origem é obrigatório");
         }
         if (rota.getDestino() == null) {
             throw new IllegalArgumentException("Endereço de destino é obrigatório");
         }
+        // Removida validação que exigia ID - agora validamos apenas a existência do objeto
         if (rota.getOrigem().equals(rota.getDestino())) {
             throw new IllegalArgumentException("Endereço de origem e destino não podem ser iguais");
         }

@@ -3,24 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPS - Buscador de Endereços e Rotas</title>
+    <title>GPS Navegação - Busca de Endereços</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 10px;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
@@ -28,38 +29,43 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 90vh;
+            height: 95vh;
         }
 
         header {
             background: #2c3e50;
             color: white;
-            padding: 20px;
+            padding: 15px 20px;
             text-align: center;
+            position: relative;
         }
 
         h1 {
-            font-size: 24px;
+            font-size: 22px;
             margin-bottom: 5px;
         }
 
         .subtitle {
             opacity: 0.8;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .main-content {
             display: flex;
             flex: 1;
             overflow: hidden;
+            position: relative;
         }
 
+        /* Sidebar Desktop */
         .sidebar {
-            width: 400px;
+            width: 350px;
             background: #f8f9fa;
             border-right: 1px solid #e0e0e0;
             display: flex;
             flex-direction: column;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
         }
 
         .tabs {
@@ -69,11 +75,11 @@
 
         .tab-button {
             flex: 1;
-            padding: 12px;
+            padding: 10px;
             background: none;
             border: none;
             color: white;
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
             transition: background 0.3s;
         }
@@ -88,29 +94,110 @@
         }
 
         .tab-content {
+            padding: 15px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* Sidebar Mobile (Retrátil) */
+        .mobile-search-toggle {
+            display: none;
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            background: #3498db;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.3);
+        }
+
+        .mobile-search-panel {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.98);
+            backdrop-filter: blur(10px);
+            z-index: 999;
+            flex-direction: column;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-search-panel.active {
+            transform: translateX(0);
+        }
+
+        .mobile-search-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .mobile-search-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .mobile-tabs {
+            display: flex;
+            background: #34495e;
+        }
+
+        .mobile-tab-button {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .mobile-tab-button.active {
+            background: #4CAF50;
+            font-weight: bold;
+        }
+
+        .mobile-tab-content {
             padding: 20px;
             flex: 1;
             overflow-y: auto;
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             font-weight: 600;
             color: #2c3e50;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         input, textarea {
             width: 100%;
-            padding: 10px 12px;
+            padding: 8px 10px;
             border: 2px solid #e0e0e0;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
             transition: border-color 0.3s;
         }
 
@@ -121,7 +208,7 @@
 
         .row {
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
 
         .row .form-group {
@@ -130,12 +217,12 @@
 
         button {
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             background: #4CAF50;
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             cursor: pointer;
             transition: background 0.3s;
@@ -147,8 +234,8 @@
         }
 
         #resultado {
-            margin-top: 20px;
-            padding: 15px;
+            margin-top: 15px;
+            padding: 12px;
             border-radius: 6px;
             background: #f8f9fa;
             border-left: 4px solid #4CAF50;
@@ -161,21 +248,21 @@
         }
 
         .endereco-completo {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             color: #2c3e50;
-            margin: 10px 0;
-            padding: 12px;
+            margin: 8px 0;
+            padding: 10px;
             background: #e8f5e8;
             border-radius: 6px;
             border-left: 4px solid #27ae60;
         }
 
         .endereco-item {
-            margin-bottom: 8px;
-            padding: 8px 0;
+            margin-bottom: 6px;
+            padding: 6px 0;
             border-bottom: 1px solid #ecf0f1;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .endereco-item:last-child {
@@ -194,24 +281,36 @@
 
         .loading {
             text-align: center;
-            padding: 15px;
+            padding: 12px;
             color: #7f8c8d;
         }
 
         .copy-btn {
             background: #3498db;
-            margin-top: 8px;
-            padding: 8px;
-            font-size: 12px;
+            margin-top: 6px;
+            padding: 6px;
+            font-size: 11px;
         }
 
         .copy-btn:hover {
             background: #2980b9;
         }
 
+        .gps-btn {
+            background: #27ae60;
+            margin-top: 6px;
+            padding: 6px;
+            font-size: 11px;
+        }
+
+        .gps-btn:hover {
+            background: #219a52;
+        }
+
         .map-container {
             flex: 1;
             position: relative;
+            min-height: 500px;
         }
 
         #map {
@@ -219,107 +318,173 @@
             width: 100%;
         }
 
-        .route-controls {
-            padding: 15px;
-            background: white;
-            border-top: 1px solid #e0e0e0;
-        }
-
-        .route-info {
-            margin-top: 15px;
+        /* Instruções de Navegação */
+        .navigation-instructions {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            background: rgba(44, 62, 80, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
             padding: 12px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border-left: 4px solid #3498db;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+            z-index: 999;
+            display: none;
+            color: white;
         }
 
-        .route-item {
+        .instruction-main {
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-            font-size: 14px;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
         }
 
-        .route-item strong {
-            color: #2c3e50;
-        }
-
-        .clear-btn {
-            background: #e74c3c;
-        }
-
-        .clear-btn:hover {
-            background: #c0392b;
-        }
-
-        .route-btn {
+        .instruction-icon {
+            font-size: 20px;
+            width: 35px;
+            height: 35px;
             background: #3498db;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .route-btn:hover {
-            background: #2980b9;
-        }
-
-        .marker-info {
+        .instruction-text {
+            flex: 1;
             font-size: 14px;
-            padding: 5px;
+            font-weight: 600;
         }
 
-        .marker-title {
-            font-weight: bold;
-            margin-bottom: 5px;
+        .instruction-distance {
+            font-size: 13px;
+            opacity: 0.8;
+            text-align: right;
         }
 
-        .coordinates {
-            font-size: 12px;
-            color: #7f8c8d;
+        .instruction-details {
+            font-size: 13px;
+            opacity: 0.8;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 8px;
         }
 
-        .search-results {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            margin-top: 10px;
+        /* Controles GPS */
+        .gps-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
-        .search-result-item {
-            padding: 10px;
-            border-bottom: 1px solid #e0e0e0;
+        .gps-btn-control {
+            width: 45px;
+            height: 45px;
+            background: rgba(44, 62, 80, 0.9);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
             cursor: pointer;
-            transition: background 0.2s;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .search-result-item:hover {
-            background: #f0f0f0;
+        .gps-btn-control:active {
+            transform: scale(0.95);
         }
 
-        .search-result-item:last-child {
-            border-bottom: none;
+        .gps-status {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(44, 62, 80, 0.9);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        .search-result-title {
-            font-weight: bold;
-            font-size: 14px;
+        .gps-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #e74c3c;
+            animation: pulse 2s infinite;
         }
 
-        .search-result-details {
-            font-size: 12px;
-            color: #7f8c8d;
+        .gps-dot.active {
+            background: #2ecc71;
         }
 
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .speed-indicator {
+            position: absolute;
+            top: 50px;
+            left: 15px;
+            background: rgba(44, 62, 80, 0.9);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            z-index: 999;
+            display: none;
+        }
+
+        /* Media Queries para Mobile */
         @media (max-width: 768px) {
-            .main-content {
-                flex-direction: column;
+            .container {
+                height: 100vh;
+                border-radius: 0;
+                padding: 0;
             }
             
             .sidebar {
-                width: 100%;
-                max-height: 40vh;
+                display: none;
             }
             
-            .map-container {
-                height: 60vh;
+            .mobile-search-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .mobile-search-panel {
+                display: flex;
+            }
+            
+            .gps-status {
+                left: 70px;
+            }
+            
+            .speed-indicator {
+                left: 70px;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-search-toggle {
+                display: none !important;
+            }
+            
+            .mobile-search-panel {
+                display: none !important;
             }
         }
     </style>
@@ -327,16 +492,18 @@
 <body>
     <div class="container">
         <header>
-            <h1>🗺️ Sistema GPS - Buscador de Endereços e Rotas</h1>
-            <p class="subtitle">Encontre endereços por CEP, calcule rotas e visualize no mapa</p>
+            <h1>🗺️ GPS Navegação</h1>
+            <p class="subtitle">Encontre endereços e navegue até o destino</p>
+            <button class="mobile-search-toggle" id="mobileSearchToggle" onclick="toggleMobileSearch()">🔍</button>
         </header>
 
         <div class="main-content">
+            <!-- Sidebar Desktop -->
             <div class="sidebar">
                 <div class="tabs">
-                    <button class="tab-button active" onclick="openTab('tabCep')">Buscar por CEP</button>
-                    <button class="tab-button" onclick="openTab('tabEndereco')">Buscar por Endereço</button>
-                    <button class="tab-button" onclick="openTab('tabRota')">Calcular Rota</button>
+                    <button class="tab-button active" onclick="openTab('tabCep', this)">Buscar por CEP</button>
+                    <button class="tab-button" onclick="openTab('tabEndereco', this)">Buscar por Endereço</button>
+                    <button class="tab-button" onclick="openTab('tabNavegacao', this)">Navegação GPS</button>
                 </div>
 
                 <!-- TAB 1: Busca por CEP -->
@@ -370,7 +537,7 @@
                     <div class="form-group">
                         <label for="enderecoCompleto">Digite o endereço completo:</label>
                         <textarea id="enderecoCompleto" rows="3" placeholder="Exemplo: Rua Onofra Aurelina da Silva, 26 - Jardim Imperial, Lagoa Santa - MG, 33234-166"></textarea>
-                        <div class="exemplo">Cole ou digite o endereço completo no formato: Rua, Número - Bairro, Cidade - UF, CEP</div>
+                        <div class="exemplo">Cole ou digite o endereço completo</div>
                     </div>
                     
                     <button onclick="processarEndereco()">🔍 Processar Endereço</button>
@@ -378,232 +545,352 @@
                     <div id="resultadoEndereco"></div>
                 </div>
 
-                <!-- TAB 3: Cálculo de Rota -->
-                <div id="tabRota" class="tab-content hidden">
+                <!-- TAB 3: Navegação GPS -->
+                <div id="tabNavegacao" class="tab-content hidden">
                     <div class="form-group">
-                        <label for="origem">Origem:</label>
-                        <input type="text" id="origem" placeholder="Digite o endereço de origem">
-                        <div id="resultadosOrigem" class="search-results hidden"></div>
+                        <label for="destinoNavegacao">Destino da Navegação:</label>
+                        <input type="text" id="destinoNavegacao" placeholder="Digite o endereço de destino">
+                        <div class="exemplo">Use um endereço encontrado nas abas anteriores</div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="destino">Destino:</label>
-                        <input type="text" id="destino" placeholder="Digite o endereço de destino">
-                        <div id="resultadosDestino" class="search-results hidden"></div>
-                    </div>
+                    <button onclick="iniciarNavegacao()" class="gps-btn">🚗 Iniciar Navegação</button>
+                    <button onclick="pararNavegacao()" style="background: #e74c3c;">⏹️ Parar Navegação</button>
                     
-                    <button onclick="calcularRota()" class="route-btn">🚗 Calcular Rota</button>
-                    <button onclick="limparRota()" class="clear-btn">🗑️ Limpar Rota</button>
-                    
-                    <div id="infoRota" class="route-info hidden">
-                        <div class="route-item">
-                            <strong>Distância:</strong> <span id="distancia">-</span>
-                        </div>
-                        <div class="route-item">
-                            <strong>Duração:</strong> <span id="duracao">-</span>
-                        </div>
-                        <div class="route-item">
-                            <strong>Origem:</strong> <span id="origemInfo">-</span>
-                        </div>
-                        <div class="route-item">
-                            <strong>Destino:</strong> <span id="destinoInfo">-</span>
-                        </div>
+                    <div id="infoNavegacao" style="margin-top: 15px; display: none;">
+                        <div class="endereco-item"><strong>📍 Destino:</strong> <span id="destinoInfo">-</span></div>
+                        <div class="endereco-item"><strong>📏 Distância:</strong> <span id="distanciaInfo">-</span></div>
+                        <div class="endereco-item"><strong>⏱️ Tempo:</strong> <span id="tempoInfo">-</span></div>
+                        <div class="endereco-item"><strong>🔄 Próxima Atualização:</strong> <span id="atualizacaoInfo">-</span></div>
                     </div>
                 </div>
             </div>
 
+            <!-- Painel Mobile Retrátil -->
+            <div class="mobile-search-panel" id="mobileSearchPanel">
+                <div class="mobile-search-header">
+                    <h3 style="margin: 0; font-size: 16px;">Buscar Endereço</h3>
+                    <button class="mobile-search-close" onclick="toggleMobileSearch()">✕</button>
+                </div>
+                
+                <div class="mobile-tabs">
+                    <button class="mobile-tab-button active" onclick="openMobileTab('mobileTabCep', this)">Por CEP</button>
+                    <button class="mobile-tab-button" onclick="openMobileTab('mobileTabEndereco', this)">Por Endereço</button>
+                    <button class="mobile-tab-button" onclick="openMobileTab('mobileTabNavegacao', this)">Navegação</button>
+                </div>
+
+                <!-- TAB Mobile 1: Busca por CEP -->
+                <div id="mobileTabCep" class="mobile-tab-content">
+                    <div class="row">
+                        <div class="form-group">
+                            <label for="mobileCep">CEP:</label>
+                            <input type="text" id="mobileCep" placeholder="00000-000" maxlength="9">
+                            <div class="exemplo">Exemplo: 33234-166</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mobileNumero">Número:</label>
+                            <input type="text" id="mobileNumero" placeholder="Número da casa">
+                            <div class="exemplo">Exemplo: 26</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="mobileComplemento">Complemento (opcional):</label>
+                        <input type="text" id="mobileComplemento" placeholder="Apto, Bloco, Casa, etc.">
+                    </div>
+                    
+                    <button onclick="consultarPorCEPMobile()">🔍 Buscar Endereço</button>
+                    
+                    <div id="mobileResultadoCep"></div>
+                </div>
+
+                <!-- TAB Mobile 2: Busca por Endereço -->
+                <div id="mobileTabEndereco" class="mobile-tab-content hidden">
+                    <div class="form-group">
+                        <label for="mobileEnderecoCompleto">Digite o endereço completo:</label>
+                        <textarea id="mobileEnderecoCompleto" rows="3" placeholder="Exemplo: Rua Onofra Aurelina da Silva, 26 - Jardim Imperial, Lagoa Santa - MG, 33234-166"></textarea>
+                        <div class="exemplo">Cole ou digite o endereço completo</div>
+                    </div>
+                    
+                    <button onclick="processarEnderecoMobile()">🔍 Processar Endereço</button>
+                    
+                    <div id="mobileResultadoEndereco"></div>
+                </div>
+
+                <!-- TAB Mobile 3: Navegação GPS -->
+                <div id="mobileTabNavegacao" class="mobile-tab-content hidden">
+                    <div class="form-group">
+                        <label for="mobileDestinoNavegacao">Destino da Navegação:</label>
+                        <input type="text" id="mobileDestinoNavegacao" placeholder="Digite o endereço de destino">
+                        <div class="exemplo">Use um endereço encontrado nas abas anteriores</div>
+                    </div>
+                    
+                    <button onclick="iniciarNavegacaoMobile()" class="gps-btn">🚗 Iniciar Navegação</button>
+                    <button onclick="pararNavegacao()" style="background: #e74c3c;">⏹️ Parar Navegação</button>
+                    
+                    <div id="mobileInfoNavegacao" style="margin-top: 15px; display: none;">
+                        <div class="endereco-item"><strong>📍 Destino:</strong> <span id="mobileDestinoInfo">-</span></div>
+                        <div class="endereco-item"><strong>📏 Distância:</strong> <span id="mobileDistanciaInfo">-</span></div>
+                        <div class="endereco-item"><strong>⏱️ Tempo:</strong> <span id="mobileTempoInfo">-</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mapa -->
             <div class="map-container">
                 <div id="map"></div>
+                
+                <!-- Instruções de Navegação -->
+                <div class="navigation-instructions" id="navigationInstructions">
+                    <div class="instruction-main">
+                        <div class="instruction-icon" id="instructionIcon">📍</div>
+                        <div class="instruction-text" id="instructionText">Siga em frente</div>
+                        <div class="instruction-distance" id="instructionDistance">500 m</div>
+                    </div>
+                    <div class="instruction-details" id="instructionDetails">
+                        Continue na rota atual
+                    </div>
+                </div>
+
+                <!-- Controles GPS -->
+                <div class="gps-controls">
+                    <button class="gps-btn-control" onclick="centralizarNoUsuario()" title="Centralizar em mim">📍</button>
+                    <button class="gps-btn-control" onclick="alternarNavegacao()" title="Iniciar/Parar Navegação" id="btnNavegacao">🚗</button>
+                </div>
+
+                <!-- Status GPS -->
+                <div class="gps-status">
+                    <div class="gps-dot" id="gpsDot"></div>
+                    <span id="gpsStatusText">GPS Inativo</span>
+                </div>
+
+                <!-- Indicador de Velocidade -->
+                <div class="speed-indicator" id="speedIndicator">
+                    🚗 <span id="speedValue">0</span> km/h
+                </div>
             </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Variáveis globais
-        let map;
-        let markers = [];
-        let routeLayer = null;
-        let origemMarker = null;
-        let destinoMarker = null;
-        let origemCoords = null;
-        let destinoCoords = null;
+        // ========== SERVICE DE INTEGRAÇÃO COM BACKEND JAVA ==========
+        class BackendService {
+            constructor() {
+                this.BASE_URL = this.getBaseUrl();
+                console.log('Backend URL:', this.BASE_URL);
+            }
 
-        // Inicialização do mapa
-        function initMap() {
-            // Coordenadas iniciais (centro do Brasil)
-            const initialCoords = [-14.2350, -51.9253];
-            
-            // Criar mapa
-            map = L.map('map').setView(initialCoords, 5);
-            
-            // Adicionar camada do OpenStreetMap
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-            
-            // Adicionar evento de clique no mapa
-            map.on('click', function(e) {
-                // Adicionar marcador no local clicado
-                addMarker(e.latlng, 'Localização selecionada');
-            });
-            
-            console.log("Mapa inicializado");
-        }
+            getBaseUrl() {
+                const hostname = window.location.hostname;
+                const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
 
-        // Adicionar marcador no mapa
-        function addMarker(coords, title, isRoutePoint = false) {
-            // Remover marcadores anteriores se for ponto de rota
-            if (isRoutePoint) {
-                if (title.includes('Origem')) {
-                    if (origemMarker) map.removeLayer(origemMarker);
-                } else if (title.includes('Destino')) {
-                    if (destinoMarker) map.removeLayer(destinoMarker);
+                if (isLocalhost) {
+                    return 'http://localhost:8080';
+                } else {
+                    return 'https://cwc3d.net';
                 }
             }
-            
-            // Criar ícone personalizado
-            const iconColor = isRoutePoint ? 
-                (title.includes('Origem') ? 'green' : 'red') : 'blue';
-                
-            const customIcon = L.divIcon({
-                className: 'custom-marker',
-                html: `<div style="background-color: ${iconColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
-                iconSize: [16, 16],
-                iconAnchor: [8, 8]
-            });
-            
-            // Adicionar marcador
-            const marker = L.marker(coords, { icon: customIcon }).addTo(map);
-            
-            // Adicionar popup
-            marker.bindPopup(`
-                <div class="marker-info">
-                    <div class="marker-title">${title}</div>
-                    <div class="coordinates">Lat: ${coords.lat.toFixed(6)}, Lng: ${coords.lng.toFixed(6)}</div>
-                </div>
-            `);
-            
-            // Salvar referência
-            markers.push(marker);
-            
-            // Salvar referências específicas para origem e destino
-            if (isRoutePoint) {
-                if (title.includes('Origem')) {
-                    origemMarker = marker;
-                    origemCoords = coords;
-                } else if (title.includes('Destino')) {
-                    destinoMarker = marker;
-                    destinoCoords = coords;
+
+            async geocodificarEndereco(endereco) {
+                try {
+                    console.log('Tentando geocodificar via backend Java...', endereco);
+                    
+                    // Garante que está enviando o campo correto
+                    const payload = {
+                        enderecoCompleto: endereco.enderecoCompleto
+                    };
+                    
+                    console.log('Payload enviado:', payload);
+                    
+                    const response = await fetch(`${this.BASE_URL}/api/enderecos`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Backend falhou:', response.status, errorText);
+                        console.log('Usando geocodificação externa...');
+                        return await this.geocodificarExterno(endereco.enderecoCompleto);
+                    }
+                    
+                    const resultado = await response.json();
+                    console.log('Geocodificação backend sucesso:', resultado);
+                    return resultado;
+                    
+                } catch (error) {
+                    console.error('Erro no serviço de geocodificação:', error);
+                    return await this.geocodificarExterno(endereco.enderecoCompleto);
                 }
             }
-            
-            // Centralizar mapa no marcador
-            map.setView(coords, 13);
-            
-            return marker;
-        }
 
-        // Limpar todos os marcadores
-        function clearMarkers() {
-            markers.forEach(marker => map.removeLayer(marker));
-            markers = [];
-            origemMarker = null;
-            destinoMarker = null;
-            origemCoords = null;
-            destinoCoords = null;
-            
-            // Limpar rota
-            if (routeLayer) {
-                map.removeLayer(routeLayer);
-                routeLayer = null;
+            async geocodificarExterno(enderecoCompleto) {
+                try {
+                    console.log('Usando geocodificação externa para:', enderecoCompleto);
+                    const response = await fetch(
+                        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(enderecoCompleto)}&limit=1&addressdetails=1`
+                    );
+                    const data = await response.json();
+                    
+                    if (data.length === 0) {
+                        throw new Error('Endereço não encontrado');
+                    }
+                    
+                    const result = data[0];
+                    return {
+                        rua: result.address.road || result.address.street || '',
+                        numero: result.address.house_number || '',
+                        bairro: result.address.suburb || result.address.neighbourhood || '',
+                        cidade: result.address.city || result.address.town || result.address.village || '',
+                        estado: result.address.state || '',
+                        cep: result.address.postcode || '',
+                        latitude: parseFloat(result.lat),
+                        longitude: parseFloat(result.lon)
+                    };
+                } catch (error) {
+                    console.error('Erro na geocodificação externa:', error);
+                    throw new Error('Não foi possível geocodificar o endereço');
+                }
             }
-            
-            // Limpar informações de rota
-            document.getElementById('infoRota').classList.add('hidden');
-        }
 
-        // Calcular e exibir rota
-        function calcularRota() {
-            if (!origemCoords || !destinoCoords) {
-                alert('Por favor, selecione origem e destino no mapa');
-                return;
+            async calcularRota(origem, destino) {
+                try {
+                    console.log('Calculando rota via backend Java...', { origem, destino });
+                    
+                    const payload = {
+                        origem: {
+                            rua: origem.rua || 'Posição Atual',
+                            numero: origem.numero || '',
+                            bairro: origem.bairro || '',
+                            cidade: origem.cidade || '',
+                            estado: origem.estado || '',
+                            latitude: origem.latitude,
+                            longitude: origem.longitude
+                        },
+                        destino: {
+                            rua: destino.rua || destino.nome || 'Destino',
+                            numero: destino.numero || '',
+                            bairro: destino.bairro || '',
+                            cidade: destino.cidade || '',
+                            estado: destino.estado || '',
+                            latitude: destino.latitude,
+                            longitude: destino.longitude
+                        }
+                    };
+                    
+                    console.log('Payload rota:', payload);
+                    
+                    const response = await fetch(`${this.BASE_URL}/api/rotas/calcular`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Backend de rotas falhou:', response.status, errorText);
+                        console.log('Usando OSRM externo...');
+                        return await this.calcularRotaExterna(origem, destino);
+                    }
+                    
+                    const resultado = await response.json();
+                    console.log('Rota calculada com sucesso:', resultado);
+                    return resultado.rota || resultado;
+                    
+                } catch (error) {
+                    console.error('Erro no serviço de rotas:', error);
+                    return await this.calcularRotaExterna(origem, destino);
+                }
             }
-            
-            // Limpar rota anterior
-            if (routeLayer) {
-                map.removeLayer(routeLayer);
-            }
-            
-            // Usar OSRM para calcular rota
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origemCoords.lng},${origemCoords.lat};${destinoCoords.lng},${destinoCoords.lat}?overview=full&geometries=geojson`;
-            
-            fetch(osrmUrl)
-                .then(response => response.json())
-                .then(data => {
+
+            async calcularRotaExterna(origem, destino) {
+                try {
+                    const response = await fetch(
+                        `https://router.project-osrm.org/route/v1/driving/${origem.longitude},${origem.latitude};${destino.longitude},${destino.latitude}?overview=full&geometries=geojson`
+                    );
+                    const data = await response.json();
+                    
                     if (data.code !== 'Ok') {
                         throw new Error('Não foi possível calcular a rota');
                     }
                     
-                    // Extrair geometria da rota
-                    const routeGeometry = data.routes[0].geometry;
-                    
-                    // Criar camada da rota
-                    routeLayer = L.geoJSON(routeGeometry, {
-                        style: {
-                            color: '#3498db',
-                            weight: 5,
-                            opacity: 0.7
-                        }
-                    }).addTo(map);
-                    
-                    // Ajustar visualização para mostrar toda a rota
-                    const bounds = routeLayer.getBounds();
-                    map.fitBounds(bounds, { padding: [20, 20] });
-                    
-                    // Exibir informações da rota
-                    const distancia = (data.routes[0].distance / 1000).toFixed(1);
-                    const duracao = (data.routes[0].duration / 60).toFixed(0);
-                    
-                    document.getElementById('distancia').textContent = `${distancia} km`;
-                    document.getElementById('duracao').textContent = `${duracao} minutos`;
-                    document.getElementById('origemInfo').textContent = `Lat: ${origemCoords.lat.toFixed(4)}, Lng: ${origemCoords.lng.toFixed(4)}`;
-                    document.getElementById('destinoInfo').textContent = `Lat: ${destinoCoords.lat.toFixed(4)}, Lng: ${destinoCoords.lng.toFixed(4)}`;
-                    document.getElementById('infoRota').classList.remove('hidden');
-                })
-                .catch(error => {
-                    console.error('Erro ao calcular rota:', error);
-                    alert('Erro ao calcular rota: ' + error.message);
-                });
+                    const route = data.routes[0];
+                    return {
+                        distanciaKm: (route.distance / 1000).toFixed(2),
+                        duracaoMinutos: Math.round(route.duration / 60),
+                        polyline: JSON.stringify(route.geometry)
+                    };
+                } catch (error) {
+                    console.error('Erro no cálculo externo de rota:', error);
+                    throw new Error('Não foi possível calcular a rota');
+                }
+            }
         }
 
-        // Limpar rota
-        function limparRota() {
-            clearMarkers();
-        }
+        // Instância global do serviço
+        const backendService = new BackendService();
 
-        // Controle das abas
-        function openTab(tabName) {
-            // Esconde todas as tabs
+        // ========== VARIÁVEIS GLOBAIS ==========
+        let map;
+        let currentLocationMarker;
+        let destinationMarker;
+        let routeLayer;
+        let watchId;
+        let isNavigating = false;
+        let currentRoute = null;
+        let currentPosition = null;
+        let destination = null;
+
+        // NOVAS VARIÁVEIS PARA NAVEGAÇÃO AVANÇADA
+        let navigationInterval;
+        let lastRouteCalculation = 0;
+
+        // ========== FUNÇÕES DE CONTROLE DAS ABAS ==========
+        function openTab(tabName, buttonElement) {
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.add('hidden');
             });
             
-            // Remove classe active de todos os botões
             document.querySelectorAll('.tab-button').forEach(button => {
                 button.classList.remove('active');
             });
             
-            // Mostra a tab selecionada e ativa o botão
             document.getElementById(tabName).classList.remove('hidden');
-            event.currentTarget.classList.add('active');
+            if (buttonElement) {
+                buttonElement.classList.add('active');
+            }
             
-            // Limpa resultados
             document.getElementById('resultadoCep').innerHTML = '';
             document.getElementById('resultadoEndereco').innerHTML = '';
         }
 
-        // Máscara para o CEP
+        function toggleMobileSearch() {
+            const panel = document.getElementById('mobileSearchPanel');
+            panel.classList.toggle('active');
+        }
+
+        function openMobileTab(tabName, buttonElement) {
+            document.querySelectorAll('.mobile-tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            document.querySelectorAll('.mobile-tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.remove('hidden');
+            if (buttonElement) {
+                buttonElement.classList.add('active');
+            }
+        }
+
+        // ========== FUNÇÕES DE BUSCA DE ENDEREÇOS ==========
         document.getElementById('cep').addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
             if (value.length > 5) {
@@ -612,7 +899,31 @@
             e.target.value = value;
         });
 
-        // Busca por CEP
+        function setupMobileInputs() {
+            document.getElementById('mobileCep').addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 5) {
+                    value = value.substring(0,5) + '-' + value.substring(5,8);
+                }
+                e.target.value = value;
+            });
+        }
+
+        function mostrarErro(elemento, mensagem) {
+            elemento.innerHTML = `<div class="erro">${mensagem}</div>`;
+        }
+
+        function mostrarSucesso(elemento, mensagem) {
+            elemento.innerHTML = `<div class="endereco-completo">${mensagem}</div>`;
+        }
+
+        function copiarEndereco(texto) {
+            navigator.clipboard.writeText(texto).then(() => {
+                alert('✅ Endereço copiado para a área de transferência!');
+            });
+        }
+
+        // Busca por CEP Desktop
         async function consultarPorCEP() {
             const cep = document.getElementById('cep').value.replace(/\D/g, '');
             const numero = document.getElementById('numero').value.trim();
@@ -620,9 +931,7 @@
             const resultado = document.getElementById('resultadoCep');
             
             resultado.innerHTML = '';
-            resultado.className = '';
             
-            // Validações
             if (cep.length !== 8) {
                 mostrarErro(resultado, '❌ CEP deve conter 8 dígitos');
                 return;
@@ -644,14 +953,12 @@
                     return;
                 }
                 
-                // Monta o endereço completo
                 let enderecoCompleto = `${dados.logradouro}, ${numero}`;
                 if (complemento) {
                     enderecoCompleto += ` - ${complemento}`;
                 }
                 enderecoCompleto += ` - ${dados.bairro}, ${dados.localidade} - ${dados.uf}, ${dados.cep}`;
                 
-                // Exibe os resultados
                 resultado.innerHTML = `
                     <div class="endereco-completo">${enderecoCompleto}</div>
                     
@@ -664,8 +971,8 @@
                         <div class="endereco-item"><strong>🗺️ Estado:</strong> ${dados.uf}</div>
                         <div class="endereco-item"><strong>📮 CEP:</strong> ${dados.cep}</div>
                     </div>
-                    <button class="copy-btn" onclick="copiarEndereco('${enderecoCompleto}')">📋 Copiar Endereço</button>
-                    <button class="route-btn" onclick="adicionarAoMapa('${dados.logradouro}, ${numero} - ${dados.bairro}, ${dados.localidade} - ${dados.uf}')">📍 Adicionar ao Mapa</button>
+                    <button class="copy-btn" onclick="copiarEndereco('${enderecoCompleto.replace(/'/g, "\\'")}')">📋 Copiar Endereço</button>
+                    <button class="gps-btn" onclick="usarComoDestino('${enderecoCompleto.replace(/'/g, "\\'")}')">📍 Usar no GPS</button>
                 `;
                 
             } catch (error) {
@@ -673,13 +980,12 @@
             }
         }
 
-        // Processa endereço digitado
-        function processarEndereco() {
+        // Processa endereço digitado Desktop
+        async function processarEndereco() {
             const enderecoTexto = document.getElementById('enderecoCompleto').value.trim();
             const resultado = document.getElementById('resultadoEndereco');
             
             resultado.innerHTML = '';
-            resultado.className = '';
             
             if (!enderecoTexto) {
                 mostrarErro(resultado, '❌ Por favor, digite um endereço');
@@ -687,174 +993,581 @@
             }
             
             try {
-                // Tenta extrair informações do endereço
-                const info = extrairInformacoesEndereco(enderecoTexto);
+                resultado.innerHTML = '<div class="loading">🔍 Processando endereço...</div>';
+                
+                const enderecoGeocodificado = await backendService.geocodificarEndereco({
+                    enderecoCompleto: enderecoTexto
+                });
                 
                 resultado.innerHTML = `
-                    <div class="endereco-completo">${info.enderecoFormatado}</div>
+                    <div class="endereco-completo">${enderecoTexto}</div>
                     
                     <div style="margin-top: 15px;">
-                        <div class="endereco-item"><strong>📝 Logradouro:</strong> ${info.logradouro}</div>
-                        <div class="endereco-item"><strong>🏠 Número:</strong> ${info.numero}</div>
-                        ${info.complemento ? `<div class="endereco-item"><strong>🔧 Complemento:</strong> ${info.complemento}</div>` : ''}
-                        <div class="endereco-item"><strong>🏘️ Bairro:</strong> ${info.bairro}</div>
-                        <div class="endereco-item"><strong>🏙️ Cidade:</strong> ${info.cidade}</div>
-                        <div class="endereco-item"><strong>🗺️ Estado:</strong> ${info.estado}</div>
-                        <div class="endereco-item"><strong>📮 CEP:</strong> ${info.cep}</div>
+                        <div class="endereco-item"><strong>📝 Logradouro:</strong> ${enderecoGeocodificado.rua || 'N/A'}</div>
+                        <div class="endereco-item"><strong>🏠 Número:</strong> ${enderecoGeocodificado.numero || 'N/A'}</div>
+                        <div class="endereco-item"><strong>🏘️ Bairro:</strong> ${enderecoGeocodificado.bairro || 'N/A'}</div>
+                        <div class="endereco-item"><strong>🏙️ Cidade:</strong> ${enderecoGeocodificado.cidade || 'N/A'}</div>
+                        <div class="endereco-item"><strong>🗺️ Estado:</strong> ${enderecoGeocodificado.estado || 'N/A'}</div>
+                        <div class="endereco-item"><strong>📍 Coordenadas:</strong> ${enderecoGeocodificado.latitude ? `${enderecoGeocodificado.latitude}, ${enderecoGeocodificado.longitude}` : 'N/A'}</div>
                     </div>
-                    <button class="copy-btn" onclick="copiarEndereco('${info.enderecoFormatado}')">📋 Copiar Endereço</button>
-                    <button class="route-btn" onclick="adicionarAoMapa('${info.enderecoFormatado}')">📍 Adicionar ao Mapa</button>
+                    <button class="copy-btn" onclick="copiarEndereco('${enderecoTexto.replace(/'/g, "\\'")}')">📋 Copiar Endereço</button>
+                    <button class="gps-btn" onclick="usarComoDestino('${enderecoTexto.replace(/'/g, "\\'")}')">📍 Usar no GPS</button>
                 `;
                 
             } catch (error) {
-                mostrarErro(resultado, '❌ Não foi possível processar o endereço. Verifique o formato.');
+                mostrarErro(resultado, '❌ Erro ao processar endereço. Tente novamente.');
             }
         }
 
-        // Função para extrair informações do endereço
-        function extrairInformacoesEndereco(endereco) {
-            // Padrões regex para extrair informações
-            const padraoCompleto = /(.+),\s*(\d+)\s*(?:-?\s*(.+?))?\s*-\s*(.+?)\s*,\s*(.+?)\s*-\s*([A-Z]{2})\s*,\s*(\d{5}-\d{3})/;
-            const match = endereco.match(padraoCompleto);
+        // Busca por CEP Mobile
+        async function consultarPorCEPMobile() {
+            const cep = document.getElementById('mobileCep').value.replace(/\D/g, '');
+            const numero = document.getElementById('mobileNumero').value.trim();
+            const complemento = document.getElementById('mobileComplemento').value.trim();
+            const resultado = document.getElementById('mobileResultadoCep');
             
-            if (!match) {
-                throw new Error('Formato de endereço não reconhecido');
+            resultado.innerHTML = '';
+            
+            if (cep.length !== 8) {
+                mostrarErro(resultado, '❌ CEP deve conter 8 dígitos');
+                return;
             }
             
-            return {
-                logradouro: match[1].trim(),
-                numero: match[2].trim(),
-                complemento: match[3] ? match[3].trim() : '',
-                bairro: match[4].trim(),
-                cidade: match[5].trim(),
-                estado: match[6].trim(),
-                cep: match[7].trim(),
-                enderecoFormatado: endereco
-            };
-        }
-
-        // Adicionar endereço ao mapa
-        async function adicionarAoMapa(endereco) {
+            if (!numero) {
+                mostrarErro(resultado, '❌ Por favor, informe o número da casa');
+                return;
+            }
+            
             try {
-                // Usar Nominatim para geocodificação
-                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endereco)}&limit=1`);
-                const data = await response.json();
+                resultado.innerHTML = '<div class="loading">🔍 Buscando endereço...</div>';
                 
-                if (data.length === 0) {
+                const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const dados = await response.json();
+                
+                if (dados.erro) {
+                    mostrarErro(resultado, '❌ CEP não encontrado');
+                    return;
+                }
+                
+                let enderecoCompleto = `${dados.logradouro}, ${numero}`;
+                if (complemento) {
+                    enderecoCompleto += ` - ${complemento}`;
+                }
+                enderecoCompleto += ` - ${dados.bairro}, ${dados.localidade} - ${dados.uf}, ${dados.cep}`;
+                
+                resultado.innerHTML = `
+                    <div class="endereco-completo">${enderecoCompleto}</div>
+                    
+                    <div style="margin-top: 15px;">
+                        <div class="endereco-item"><strong>📝 Logradouro:</strong> ${dados.logradouro}</div>
+                        <div class="endereco-item"><strong>🏠 Número:</strong> ${numero}</div>
+                        ${complemento ? `<div class="endereco-item"><strong>🔧 Complemento:</strong> ${complemento}</div>` : ''}
+                        <div class="endereco-item"><strong>🏘️ Bairro:</strong> ${dados.bairro}</div>
+                        <div class="endereco-item"><strong>🏙️ Cidade:</strong> ${dados.localidade}</div>
+                        <div class="endereco-item"><strong>🗺️ Estado:</strong> ${dados.uf}</div>
+                        <div class="endereco-item"><strong>📮 CEP:</strong> ${dados.cep}</div>
+                    </div>
+                    <button class="copy-btn" onclick="copiarEndereco('${enderecoCompleto.replace(/'/g, "\\'")}')">📋 Copiar Endereço</button>
+                    <button class="gps-btn" onclick="usarComoDestinoMobile('${enderecoCompleto.replace(/'/g, "\\'")}')">📍 Usar no GPS</button>
+                `;
+                
+            } catch (error) {
+                mostrarErro(resultado, '❌ Erro ao consultar o CEP. Tente novamente.');
+            }
+        }
+
+        // Processa endereço mobile
+        async function processarEnderecoMobile() {
+            const enderecoTexto = document.getElementById('mobileEnderecoCompleto').value.trim();
+            const resultado = document.getElementById('mobileResultadoEndereco');
+            
+            resultado.innerHTML = '';
+            
+            if (!enderecoTexto) {
+                mostrarErro(resultado, '❌ Por favor, digite um endereço');
+                return;
+            }
+            
+            try {
+                resultado.innerHTML = '<div class="loading">🔍 Processando endereço...</div>';
+                
+                const enderecoGeocodificado = await backendService.geocodificarEndereco({
+                    enderecoCompleto: enderecoTexto
+                });
+                
+                resultado.innerHTML = `
+                    <div class="endereco-completo">${enderecoTexto}</div>
+                    
+                    <div style="margin-top: 15px;">
+                        <div class="endereco-item"><strong>📝 Logradouro:</strong> ${enderecoGeocodificado.rua || 'N/A'}</div>
+                        <div class="endereco-item"><strong>🏠 Número:</strong> ${enderecoGeocodificado.numero || 'N/A'}</div>
+                        <div class="endereco-item"><strong>🏘️ Bairro:</strong> ${enderecoGeocodificado.bairro || 'N/A'}</div>
+                        <div class="endereco-item"><strong>🏙️ Cidade:</strong> ${enderecoGeocodificado.cidade || 'N/A'}</div>
+                        <div class="endereco-item"><strong>🗺️ Estado:</strong> ${enderecoGeocodificado.estado || 'N/A'}</div>
+                        <div class="endereco-item"><strong>📍 Coordenadas:</strong> ${enderecoGeocodificado.latitude ? `${enderecoGeocodificado.latitude}, ${enderecoGeocodificado.longitude}` : 'N/A'}</div>
+                    </div>
+                    <button class="copy-btn" onclick="copiarEndereco('${enderecoTexto.replace(/'/g, "\\'")}')">📋 Copiar Endereço</button>
+                    <button class="gps-btn" onclick="usarComoDestinoMobile('${enderecoTexto.replace(/'/g, "\\'")}')">📍 Usar no GPS</button>
+                `;
+                
+            } catch (error) {
+                mostrarErro(resultado, '❌ Erro ao processar endereço. Tente novamente.');
+            }
+        }
+
+        // ========== FUNÇÕES DE GPS E NAVEGAÇÃO ==========
+        function initMap() {
+            const initialCoords = [-15.7797, -47.9297];
+            
+            map = L.map('map', {
+                zoomControl: false
+            }).setView(initialCoords, 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            L.control.zoom({
+                position: 'bottomright'
+            }).addTo(map);
+        }
+
+        function initGPS() {
+            if (!navigator.geolocation) {
+                updateGPSStatus('GPS não suportado', false);
+                return;
+            }
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 1000
+            };
+
+            watchId = navigator.geolocation.watchPosition(
+                position => {
+                    handlePositionUpdate(position);
+                },
+                error => {
+                    handlePositionError(error);
+                },
+                options
+            );
+        }
+
+        function handlePositionUpdate(position) {
+            currentPosition = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                speed: position.coords.speed || 0,
+                heading: position.coords.heading
+            };
+
+            updateGPSStatus('GPS Ativo', true);
+            updateSpeedIndicator(currentPosition.speed);
+            updateLocationMarker(currentPosition);
+
+            if (isNavigating && destination) {
+                updateNavigationInstructions();
+                recalcularRotaSeNecessario();
+            }
+        }
+
+        function handlePositionError(error) {
+            let message = 'Erro de GPS';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    message = 'Permissão negada';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message = 'Posição indisponível';
+                    break;
+                case error.TIMEOUT:
+                    message = 'Tempo esgotado';
+                    break;
+            }
+            updateGPSStatus(message, false);
+        }
+
+        function updateLocationMarker(position) {
+            if (!currentLocationMarker) {
+                const icon = L.divIcon({
+                    className: 'current-location-marker',
+                    html: `
+                        <div style="
+                            width: 20px;
+                            height: 20px;
+                            background: #3498db;
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                        "></div>
+                    `,
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+
+                currentLocationMarker = L.marker([position.lat, position.lng], { icon }).addTo(map);
+            } else {
+                currentLocationMarker.setLatLng([position.lat, position.lng]);
+            }
+
+            if (isNavigating) {
+                map.setView([position.lat, position.lng], 16);
+            }
+        }
+
+        function centralizarNoUsuario() {
+            if (currentPosition) {
+                map.setView([currentPosition.lat, currentPosition.lng], 16);
+            }
+        }
+
+        function updateGPSStatus(message, isActive) {
+            document.getElementById('gpsStatusText').textContent = message;
+            document.getElementById('gpsDot').classList.toggle('active', isActive);
+        }
+
+        function updateSpeedIndicator(speed) {
+            const speedKmh = Math.round((speed * 3.6) || 0);
+            document.getElementById('speedValue').textContent = speedKmh;
+            document.getElementById('speedIndicator').style.display = 'block';
+        }
+
+        // Usar endereço como destino
+        async function usarComoDestino(enderecoCompleto) {
+            try {
+                const enderecoGeocodificado = await backendService.geocodificarEndereco({
+                    enderecoCompleto: enderecoCompleto
+                });
+                
+                if (!enderecoGeocodificado.latitude) {
                     alert('Endereço não encontrado no mapa');
                     return;
                 }
                 
-                const coords = {
-                    lat: parseFloat(data[0].lat),
-                    lng: parseFloat(data[0].lon)
+                destination = {
+                    lat: enderecoGeocodificado.latitude,
+                    lng: enderecoGeocodificado.longitude,
+                    nome: enderecoCompleto
                 };
                 
-                // Adicionar marcador
-                addMarker(coords, endereco);
+                if (destinationMarker) {
+                    map.removeLayer(destinationMarker);
+                }
+                
+                destinationMarker = L.marker([destination.lat, destination.lng])
+                    .addTo(map)
+                    .bindPopup(`<b>Destino:</b><br>${enderecoCompleto}`)
+                    .openPopup();
+                
+                const navButton = document.querySelector('.tab-button:nth-child(3)');
+                openTab('tabNavegacao', navButton);
+                document.getElementById('destinoNavegacao').value = enderecoCompleto;
+                document.getElementById('destinoInfo').textContent = enderecoCompleto;
+                
+                if (currentPosition) {
+                    const bounds = L.latLngBounds([
+                        [currentPosition.lat, currentPosition.lng],
+                        [destination.lat, destination.lng]
+                    ]);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                } else {
+                    map.setView([destination.lat, destination.lng], 15);
+                }
                 
             } catch (error) {
-                console.error('Erro ao geocodificar endereço:', error);
-                alert('Erro ao adicionar endereço ao mapa');
+                console.error('Erro ao geocodificar:', error);
+                alert('Erro ao processar endereço para navegação');
             }
         }
 
-        // Função para copiar endereço
-        function copiarEndereco(texto) {
-            navigator.clipboard.writeText(texto).then(() => {
-                alert('✅ Endereço copiado para a área de transferência!');
-            });
+        // Usar destino mobile
+        async function usarComoDestinoMobile(enderecoCompleto) {
+            await usarComoDestino(enderecoCompleto);
+            toggleMobileSearch();
         }
 
-        // Função para mostrar erro
-        function mostrarErro(elemento, mensagem) {
-            elemento.innerHTML = mensagem;
-            elemento.classList.add('erro');
-        }
-
-        // Busca de endereços para autocompletar
-        function buscarEnderecosAutocomplete(inputElement, resultadosElement) {
-            const query = inputElement.value.trim();
+        // Iniciar navegação
+        async function iniciarNavegacao() {
+            const destinoInput = document.getElementById('destinoNavegacao').value.trim();
             
-            if (query.length < 3) {
-                resultadosElement.classList.add('hidden');
+            if (!destinoInput) {
+                alert('Por favor, digite um destino ou use um endereço das abas anteriores');
                 return;
             }
             
-            // Usar Nominatim para busca
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`)
-                .then(response => response.json())
-                .then(data => {
-                    resultadosElement.innerHTML = '';
-                    
-                    if (data.length === 0) {
-                        resultadosElement.classList.add('hidden');
-                        return;
-                    }
-                    
-                    data.forEach(item => {
-                        const div = document.createElement('div');
-                        div.className = 'search-result-item';
-                        div.innerHTML = `
-                            <div class="search-result-title">${item.display_name.split(',')[0]}</div>
-                            <div class="search-result-details">${item.display_name}</div>
-                        `;
-                        
-                        div.addEventListener('click', () => {
-                            inputElement.value = item.display_name;
-                            resultadosElement.classList.add('hidden');
-                            
-                            // Adicionar marcador no mapa
-                            const coords = {
-                                lat: parseFloat(item.lat),
-                                lng: parseFloat(item.lon)
-                            };
-                            
-                            const markerTitle = inputElement.id === 'origem' ? 'Origem da rota' : 'Destino da rota';
-                            addMarker(coords, markerTitle, true);
-                        });
-                        
-                        resultadosElement.appendChild(div);
-                    });
-                    
-                    resultadosElement.classList.remove('hidden');
-                })
-                .catch(error => {
-                    console.error('Erro na busca de endereços:', error);
-                    resultadosElement.classList.add('hidden');
-                });
+            if (!destination) {
+                await usarComoDestino(destinoInput);
+            }
+            
+            if (!destination || !currentPosition) {
+                alert('Aguardando posição GPS...');
+                return;
+            }
+            
+            isNavigating = true;
+            document.getElementById('btnNavegacao').style.background = '#e74c3c';
+            document.getElementById('infoNavegacao').style.display = 'block';
+            document.getElementById('navigationInstructions').style.display = 'block';
+            
+            try {
+                const origem = {
+                    rua: 'Posição Atual',
+                    latitude: currentPosition.lat,
+                    longitude: currentPosition.lng
+                };
+                
+                const destino = {
+                    rua: destination.nome,
+                    latitude: destination.lat,
+                    longitude: destination.lng
+                };
+                
+                const route = await backendService.calcularRota(origem, destino);
+                
+                currentRoute = route;
+                exibirRotaNoMapa(route);
+                atualizarInformacoesNavegacao();
+                
+                // Iniciar monitoramento de navegação
+                iniciarMonitoramentoNavegacao();
+                
+            } catch (error) {
+                console.error('Erro ao calcular rota:', error);
+                alert('Erro ao calcular rota');
+            }
         }
 
-        // Event listeners para autocompletar
-        document.getElementById('origem').addEventListener('input', function() {
-            buscarEnderecosAutocomplete(this, document.getElementById('resultadosOrigem'));
-        });
-        
-        document.getElementById('destino').addEventListener('input', function() {
-            buscarEnderecosAutocomplete(this, document.getElementById('resultadosDestino'));
-        });
+        // Iniciar navegação mobile
+        function iniciarNavegacaoMobile() {
+            const destinoInput = document.getElementById('mobileDestinoNavegacao').value.trim();
+            if (destinoInput) {
+                document.getElementById('destinoNavegacao').value = destinoInput;
+            }
+            iniciarNavegacao();
+            toggleMobileSearch();
+        }
 
-        // Enter para buscar
-        document.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                const tabAtiva = document.querySelector('.tab-button.active').textContent;
-                if (tabAtiva.includes('CEP')) {
-                    consultarPorCEP();
-                } else if (tabAtiva.includes('Endereço')) {
-                    processarEndereco();
-                } else if (tabAtiva.includes('Rota')) {
-                    calcularRota();
+        // Exibir rota no mapa
+        function exibirRotaNoMapa(route) {
+            if (routeLayer) {
+                map.removeLayer(routeLayer);
+            }
+
+            let geometry;
+            if (route.polyline) {
+                try {
+                    geometry = JSON.parse(route.polyline);
+                } catch (e) {
+                    console.error('Erro ao parsear polyline:', e);
+                    geometry = {
+                        type: "LineString",
+                        coordinates: [
+                            [currentPosition.lng, currentPosition.lat],
+                            [destination.lng, destination.lat]
+                        ]
+                    };
+                }
+            } else {
+                geometry = {
+                    type: "LineString",
+                    coordinates: [
+                        [currentPosition.lng, currentPosition.lat],
+                        [destination.lng, destination.lat]
+                    ]
+                };
+            }
+
+            routeLayer = L.geoJSON(geometry, {
+                style: {
+                    color: '#e74c3c',
+                    weight: 8,
+                    opacity: 0.9,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }
+            }).addTo(map);
+            
+            const bounds = routeLayer.getBounds();
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+
+        // Recalcular rota se necessário
+        async function recalcularRotaSeNecessario() {
+            const agora = Date.now();
+            const tempoDesdeUltimoCalculo = agora - lastRouteCalculation;
+            
+            if (tempoDesdeUltimoCalculo > 30000) {
+                try {
+                    const origem = {
+                        rua: 'Posição Atual',
+                        latitude: currentPosition.lat,
+                        longitude: currentPosition.lng
+                    };
+                    
+                    const destino = {
+                        rua: destination.nome,
+                        latitude: destination.lat,
+                        longitude: destination.lng
+                    };
+                    
+                    const novaRota = await backendService.calcularRota(origem, destino);
+                    currentRoute = novaRota;
+                    exibirRotaNoMapa(novaRota);
+                    atualizarInformacoesNavegacao();
+                    lastRouteCalculation = agora;
+                    
+                } catch (error) {
+                    console.error('Erro ao recalcular rota:', error);
                 }
             }
-        });
+        }
 
-        // Exemplo pré-preenchido na segunda aba
-        document.getElementById('enderecoCompleto').value = 'Rua Onofra Aurelina da Silva, 26 - Jardim Imperial, Lagoa Santa - MG, 33234-166';
+        // Iniciar monitoramento de navegação
+        function iniciarMonitoramentoNavegacao() {
+            lastRouteCalculation = Date.now();
+            
+            navigationInterval = setInterval(() => {
+                if (isNavigating && currentPosition && destination) {
+                    updateNavigationInstructions();
+                    atualizarInformacoesNavegacao();
+                }
+            }, 5000);
+        }
 
-        // Inicializar mapa quando a página carregar
-        window.onload = function() {
+        // Atualizar instruções de navegação
+        function updateNavigationInstructions() {
+            if (!currentPosition || !destination) return;
+
+            const distancia = calcularDistancia(
+                currentPosition.lat, currentPosition.lng,
+                destination.lat, destination.lng
+            );
+
+            if (distancia < 0.02) {
+                document.getElementById('instructionIcon').textContent = '🎯';
+                document.getElementById('instructionText').textContent = 'Você chegou ao destino!';
+                document.getElementById('instructionDistance').textContent = 'Chegada';
+                document.getElementById('instructionDetails').textContent = 'Navegação finalizada';
+                pararNavegacao();
+                return;
+            }
+
+            const bearing = calcularDirecao(
+                currentPosition.lat, currentPosition.lng,
+                destination.lat, destination.lng
+            );
+
+            let instrucao = {
+                icon: '📍',
+                text: 'Siga em frente',
+                distancia: `${Math.round(distancia * 1000)} m`,
+                detalhes: 'Continue na rota atual'
+            };
+
+            if (bearing >= 337.5 || bearing < 22.5) {
+                instrucao = { icon: '⬆️', text: 'Siga para o Norte', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Mantenha o Norte' };
+            } else if (bearing >= 22.5 && bearing < 67.5) {
+                instrucao = { icon: '↗️', text: 'Siga para o Nordeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Direção Nordeste' };
+            } else if (bearing >= 67.5 && bearing < 112.5) {
+                instrucao = { icon: '➡️', text: 'Siga para o Leste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Mantenha o Leste' };
+            } else if (bearing >= 112.5 && bearing < 157.5) {
+                instrucao = { icon: '↘️', text: 'Siga para o Sudeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Direção Sudeste' };
+            } else if (bearing >= 157.5 && bearing < 202.5) {
+                instrucao = { icon: '⬇️', text: 'Siga para o Sul', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Mantenha o Sul' };
+            } else if (bearing >= 202.5 && bearing < 247.5) {
+                instrucao = { icon: '↙️', text: 'Siga para o Sudoeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Direção Sudoeste' };
+            } else if (bearing >= 247.5 && bearing < 292.5) {
+                instrucao = { icon: '⬅️', text: 'Siga para o Oeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Mantenha o Oeste' };
+            } else if (bearing >= 292.5 && bearing < 337.5) {
+                instrucao = { icon: '↖️', text: 'Siga para o Noroeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Direção Noroeste' };
+            }
+
+            document.getElementById('instructionIcon').textContent = instrucao.icon;
+            document.getElementById('instructionText').textContent = instrucao.text;
+            document.getElementById('instructionDistance').textContent = instrucao.distancia;
+            document.getElementById('instructionDetails').textContent = instrucao.detalhes;
+        }
+
+        // Atualizar informações de navegação
+        function atualizarInformacoesNavegacao() {
+            if (!currentRoute || !destination) return;
+
+            const distancia = currentRoute.distanciaKm ? currentRoute.distanciaKm : '0.0';
+            const tempo = currentRoute.duracaoMinutos ? currentRoute.duracaoMinutos : '0';
+            const proximaAtualizacao = Math.ceil((30000 - (Date.now() - lastRouteCalculation)) / 1000);
+
+            document.getElementById('distanciaInfo').textContent = `${distancia} km`;
+            document.getElementById('tempoInfo').textContent = `${tempo} minutos`;
+            document.getElementById('atualizacaoInfo').textContent = `${proximaAtualizacao}s`;
+            document.getElementById('mobileDistanciaInfo').textContent = `${distancia} km`;
+            document.getElementById('mobileTempoInfo').textContent = `${tempo} minutos`;
+        }
+
+        // Calcular distância
+        function calcularDistancia(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Calcular direção
+        function calcularDirecao(lat1, lon1, lat2, lon2) {
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
+            const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+                     Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+
+        // Alternar navegação
+        function alternarNavegacao() {
+            if (isNavigating) {
+                pararNavegacao();
+            } else {
+                iniciarNavegacao();
+            }
+        }
+
+        // Parar navegação
+        function pararNavegacao() {
+            isNavigating = false;
+            document.getElementById('btnNavegacao').style.background = '';
+            document.getElementById('navigationInstructions').style.display = 'none';
+            document.getElementById('infoNavegacao').style.display = 'none';
+            document.getElementById('mobileInfoNavegacao').style.display = 'none';
+            
+            if (navigationInterval) {
+                clearInterval(navigationInterval);
+                navigationInterval = null;
+            }
+            
+            if (routeLayer) {
+                map.removeLayer(routeLayer);
+                routeLayer = null;
+            }
+        }
+
+        // ========== INICIALIZAÇÃO ==========
+        function initApp() {
             initMap();
-        };
+            initGPS();
+            setupMobileInputs();
+            
+            // Exemplo pré-preenchido
+            document.getElementById('enderecoCompleto').value = 'Rua Onofra Aurelina da Silva, 26 - Jardim Imperial, Lagoa Santa - MG, 33234-166';
+            document.getElementById('mobileEnderecoCompleto').value = 'Rua Onofra Aurelina da Silva, 26 - Jardim Imperial, Lagoa Santa - MG, 33234-166';
+        }
+
+        // Inicializar aplicativo
+        window.onload = initApp;
     </script>
 </body>
 </html>
