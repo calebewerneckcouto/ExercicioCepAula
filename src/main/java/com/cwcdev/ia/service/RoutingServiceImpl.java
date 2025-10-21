@@ -1,9 +1,7 @@
 package com.cwcdev.ia.service;
 
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-
+import com.cwcdev.ia.model.Endereco;
+import com.cwcdev.ia.model.Rota;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
@@ -16,9 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import com.cwcdev.ia.model.Endereco;
-import com.cwcdev.ia.model.Rota;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class RoutingServiceImpl implements RoutingService {
@@ -58,7 +56,7 @@ public class RoutingServiceImpl implements RoutingService {
             String coordinates = String.format("%s,%s;%s,%s", origLon, origLat, destLon, destLat);
             
             URI uri = new URIBuilder(osrmUrl + "/" + coordinates)
-                    .addParameter("overview", "full") // Para obter a geometria completa
+                    .addParameter("overview", "full")
                     .addParameter("geometries", "geojson")
                     .addParameter("steps", "false")
                     .build();
@@ -73,7 +71,8 @@ public class RoutingServiceImpl implements RoutingService {
                 JSONObject result = new JSONObject(jsonResponse);
                 
                 if (!result.getString("code").equals("Ok")) {
-                    throw new RuntimeException("Erro no OSRM: " + result.optString("message", "Unknown error"));
+                    String errorMessage = result.optString("message", "Unknown error");
+                    throw new RuntimeException("Erro no OSRM: " + errorMessage);
                 }
                 
                 return parseOsrmResponse(result, origLat, origLon, destLat, destLon);
@@ -167,6 +166,11 @@ public class RoutingServiceImpl implements RoutingService {
                 String jsonResponse = EntityUtils.toString(response.getEntity());
                 JSONObject result = new JSONObject(jsonResponse);
                 
+                if (!result.getString("code").equals("Ok")) {
+                    String errorMessage = result.optString("message", "Unknown error");
+                    throw new RuntimeException("Erro no OSRM: " + errorMessage);
+                }
+                
                 return parseOsrmResponseComWaypoints(result, waypoints);
             }
             
@@ -178,19 +182,13 @@ public class RoutingServiceImpl implements RoutingService {
 
     @Override
     public boolean validarCobertura(Endereco endereco) {
-        try {
-            // Verificar se as coordenadas estão dentro do Brasil (aproximadamente)
-            Double lat = endereco.getLatitude();
-            Double lon = endereco.getLongitude();
-            
-            return lat != null && lon != null && 
-                   lat >= -33.0 && lat <= 5.0 && // Latitude do Brasil
-                   lon >= -74.0 && lon <= -34.0; // Longitude do Brasil
-                   
-        } catch (Exception e) {
-            logger.error("Erro ao validar cobertura para endereço: {}", endereco, e);
-            return false;
-        }
+        // MUDANÇA: Validação de coordenadas válida globalmente
+        Double lat = endereco.getLatitude();
+        Double lon = endereco.getLongitude();
+        
+        return lat != null && lon != null && 
+               lat >= -90.0 && lat <= 90.0 && 
+               lon >= -180.0 && lon <= 180.0;
     }
 
     /**
@@ -262,7 +260,7 @@ public class RoutingServiceImpl implements RoutingService {
         }
         
         if (!validarCobertura(origem) || !validarCobertura(destino)) {
-            throw new IllegalArgumentException("Endereços fora da área de cobertura");
+            throw new IllegalArgumentException("Coordenadas inválidas. Verifique os limites de latitude e longitude.");
         }
     }
 

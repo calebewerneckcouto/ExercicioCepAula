@@ -1,9 +1,6 @@
 package com.cwcdev.ia.service;
 
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-
+import com.cwcdev.ia.model.Endereco;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
@@ -16,8 +13,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import com.cwcdev.ia.model.Endereco;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @Service
 public class GeocodingServiceImpl implements GeocodingService {
@@ -61,7 +60,7 @@ public class GeocodingServiceImpl implements GeocodingService {
                     .addParameter("format", format)
                     .addParameter("limit", limit)
                     .addParameter("addressdetails", "1")
-                    .addParameter("countrycodes", "br") // Foca no Brasil
+                    // REMOVIDO: .addParameter("countrycodes", "br") // Agora é global/amplo
                     .addParameter("accept-language", "pt-br")
                     .build();
             
@@ -138,7 +137,7 @@ public class GeocodingServiceImpl implements GeocodingService {
                     .addParameter("format", format)
                     .addParameter("limit", "10")
                     .addParameter("addressdetails", "1")
-                    .addParameter("countrycodes", "br")
+                    // REMOVIDO: .addParameter("countrycodes", "br") 
                     .addParameter("accept-language", "pt-br")
                     .build();
             
@@ -173,7 +172,8 @@ public class GeocodingServiceImpl implements GeocodingService {
     }
 
     /**
-     * Constrói endereço completo a partir do objeto Endereco
+     * Constrói endereço completo a partir do objeto Endereco.
+     * REMOVIDO o ", Brasil" fixo.
      */
     private String construirEnderecoCompleto(Endereco endereco) {
         StringBuilder sb = new StringBuilder();
@@ -200,7 +200,6 @@ public class GeocodingServiceImpl implements GeocodingService {
             sb.append(endereco.getEstado().trim());
         }
         
-        sb.append(", Brasil");
         return sb.toString();
     }
 
@@ -225,7 +224,10 @@ public class GeocodingServiceImpl implements GeocodingService {
         
         // Display name como fallback
         if (endereco.getRua() == null) {
-            endereco.setRua(result.optString("display_name", "").split(",")[0].trim());
+            String displayName = result.optString("display_name", "");
+            if (!displayName.isEmpty()) {
+                endereco.setRua(displayName.split(",")[0].trim());
+            }
         }
         
         logger.info("Endereço geocodificado: {} -> ({}, {})", 

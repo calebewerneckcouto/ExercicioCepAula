@@ -2,14 +2,12 @@ package com.cwcdev.ia.service;
 
 import org.springframework.stereotype.Service;
 import java.util.*;
-import java.util.regex.Pattern;
 
 @Service
 public class VoiceCommandService {
     
-    // CORREÇÃO: Substituir Map.of() por HashMap tradicional
     private static final Map<String, String> COMANDOS_VOZ;
-    private static final Map<String, String> SINONIMOS_CIDADES;
+    private static final Map<String, String> SINONIMOS_CIDADES; // Generalizados
     
     static {
         // Inicialização estática para Java 8
@@ -24,9 +22,10 @@ public class VoiceCommandService {
         COMANDOS_VOZ = Collections.unmodifiableMap(comandosTemp);
         
         Map<String, String> sinonimosTemp = new HashMap<>();
-        sinonimosTemp.put("shopping", "Shopping Vale do Aço");
-        sinonimosTemp.put("hospital", "Hospital Municipal");
-        sinonimosTemp.put("prefeitura", "Prefeitura Municipal");
+        // Sinônimos Generalizados: o geocoding terá que inferir a localização
+        sinonimosTemp.put("shopping", "Shopping");
+        sinonimosTemp.put("hospital", "Hospital");
+        sinonimosTemp.put("prefeitura", "Prefeitura");
         sinonimosTemp.put("centro", "Centro");
         sinonimosTemp.put("rodoviária", "Rodoviária");
         SINONIMOS_CIDADES = Collections.unmodifiableMap(sinonimosTemp);
@@ -51,7 +50,6 @@ public class VoiceCommandService {
     }
     
     private String encontrarIntencao(String comando) {
-        // CORREÇÃO: Substituir stream() por loop tradicional
         for (Map.Entry<String, String> entry : COMANDOS_VOZ.entrySet()) {
             if (comando.contains(entry.getKey())) {
                 return entry.getValue();
@@ -61,24 +59,23 @@ public class VoiceCommandService {
     }
     
     private String extrairLocalizacao(String comando, String intencao) {
-        // Remove a parte do comando para extrair só o local
         String comandoSemIntencao = comando;
         for (String cmd : COMANDOS_VOZ.keySet()) {
             comandoSemIntencao = comandoSemIntencao.replace(cmd, "").trim();
         }
         
-        // Remove palavras comuns
+        // Remove palavras comuns (usando regex para melhor precisão)
         String[] palavrasRemover = {"em", "no", "na", "de", "para", "o", "a"};
-        for (String palavra : palavrasRemover) {
-            comandoSemIntencao = comandoSemIntencao.replace(" " + palavra + " ", " ");
-        }
+        String regexPalavras = "\\b(" + String.join("|", palavrasRemover) + ")\\b";
+        
+        comandoSemIntencao = comandoSemIntencao.replaceAll(regexPalavras, "").trim();
+        comandoSemIntencao = comandoSemIntencao.replaceAll("\\s+", " ");
         
         return comandoSemIntencao.trim();
     }
     
     private String aplicarSinonimos(String localizacao) {
         String localLower = localizacao.toLowerCase();
-        // CORREÇÃO: getOrDefault com verificação manual
         if (SINONIMOS_CIDADES.containsKey(localLower)) {
             return SINONIMOS_CIDADES.get(localLower);
         }
@@ -97,31 +94,13 @@ public class VoiceCommandService {
             this.comandoOriginal = comandoOriginal;
         }
         
-        // getters
-        public String getIntencao() { 
-            return intencao; 
-        }
-        
-        public String getLocalizacao() { 
-            return localizacao; 
-        }
-        
-        public String getComandoOriginal() { 
-            return comandoOriginal; 
-        }
-        
-        // setters (opcionais)
-        public void setIntencao(String intencao) {
-            this.intencao = intencao;
-        }
-        
-        public void setLocalizacao(String localizacao) {
-            this.localizacao = localizacao;
-        }
-        
-        public void setComandoOriginal(String comandoOriginal) {
-            this.comandoOriginal = comandoOriginal;
-        }
+        // getters e setters (mantidos)
+        public String getIntencao() { return intencao; }
+        public String getLocalizacao() { return localizacao; }
+        public String getComandoOriginal() { return comandoOriginal; }
+        public void setIntencao(String intencao) { this.intencao = intencao; }
+        public void setLocalizacao(String localizacao) { this.localizacao = localizacao; }
+        public void setComandoOriginal(String comandoOriginal) { this.comandoOriginal = comandoOriginal; }
         
         @Override
         public String toString() {
