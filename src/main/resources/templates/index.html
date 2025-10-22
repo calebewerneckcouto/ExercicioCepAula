@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPS Navegação - Busca de Endereços</title>
+    <title>GPS Navegação - Mapa Moderno com Navegação por Voz</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <style>
         * {
             margin: 0;
@@ -316,6 +317,7 @@
         #map {
             height: 100%;
             width: 100%;
+            z-index: 1;
         }
 
         /* Instruções de Navegação */
@@ -447,6 +449,66 @@
             display: none;
         }
 
+        /* Controle de Voz */
+        .voice-control {
+            position: absolute;
+            bottom: 90px;
+            right: 15px;
+            z-index: 999;
+        }
+
+        .voice-btn {
+            width: 50px;
+            height: 50px;
+            background: rgba(231, 76, 60, 0.9);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .voice-btn.listening {
+            background: rgba(52, 152, 219, 0.9);
+            animation: pulse 1s infinite;
+        }
+
+        .voice-status {
+            position: absolute;
+            bottom: 150px;
+            right: 15px;
+            background: rgba(44, 62, 80, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 999;
+            display: none;
+            max-width: 200px;
+        }
+
+        /* Indicador de chegada */
+        .arrival-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(46, 204, 113, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 999;
+            display: none;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
         /* Media Queries para Mobile */
         @media (max-width: 768px) {
             .container {
@@ -492,8 +554,8 @@
 <body>
     <div class="container">
         <header>
-            <h1>🗺️ GPS Navegação</h1>
-            <p class="subtitle">Encontre endereços e navegue até o destino</p>
+            <h1>🗺️ GPS Navegação Moderna</h1>
+            <p class="subtitle">Mapa moderno com navegação por voz</p>
             <button class="mobile-search-toggle" id="mobileSearchToggle" onclick="toggleMobileSearch()">🔍</button>
         </header>
 
@@ -656,6 +718,7 @@
                 <div class="gps-controls">
                     <button class="gps-btn-control" onclick="centralizarNoUsuario()" title="Centralizar em mim">📍</button>
                     <button class="gps-btn-control" onclick="alternarNavegacao()" title="Iniciar/Parar Navegação" id="btnNavegacao">🚗</button>
+                    <button class="gps-btn-control" onclick="alternarTemaMapa()" title="Alternar Tema" id="btnTema">🌙</button>
                 </div>
 
                 <!-- Status GPS -->
@@ -668,11 +731,26 @@
                 <div class="speed-indicator" id="speedIndicator">
                     🚗 <span id="speedValue">0</span> km/h
                 </div>
+
+                <!-- Controle de Voz -->
+                <div class="voice-control">
+                    <button class="voice-btn" id="voiceBtn" onclick="toggleVoiceNavigation()">🎤</button>
+                </div>
+                
+                <div class="voice-status" id="voiceStatus">
+                    Navegação por voz ativada
+                </div>
+
+                <!-- Indicador de Chegada -->
+                <div class="arrival-indicator" id="arrivalIndicator">
+                    🎉 Você chegou ao destino!
+                </div>
             </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     <script>
         // ========== SERVICE DE INTEGRAÇÃO COM BACKEND JAVA ==========
         class BackendService {
@@ -841,15 +919,21 @@
         let currentLocationMarker;
         let destinationMarker;
         let routeLayer;
+        let routingControl;
         let watchId;
         let isNavigating = false;
         let currentRoute = null;
         let currentPosition = null;
         let destination = null;
+        let isDarkMode = false;
+        let voiceNavigationEnabled = false;
+        let speechSynthesis = window.speechSynthesis;
+        let recognition = null;
 
         // NOVAS VARIÁVEIS PARA NAVEGAÇÃO AVANÇADA
         let navigationInterval;
         let lastRouteCalculation = 0;
+        let lastVoiceInstruction = 0;
 
         // ========== FUNÇÕES DE CONTROLE DAS ABAS ==========
         function openTab(tabName, buttonElement) {
@@ -1120,16 +1204,50 @@
             const initialCoords = [-15.7797, -47.9297];
             
             map = L.map('map', {
-                zoomControl: false
+                zoomControl: false,
+                preferCanvas: true
             }).setView(initialCoords, 13);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
+            // Mapa moderno com tema claro
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
             }).addTo(map);
 
+            // Adicionar controle de zoom
             L.control.zoom({
                 position: 'bottomright'
             }).addTo(map);
+        }
+
+        // Alternar tema do mapa
+        function alternarTemaMapa() {
+            isDarkMode = !isDarkMode;
+            
+            // Remover todas as camadas de tile
+            map.eachLayer(function(layer) {
+                if (layer instanceof L.TileLayer) {
+                    map.removeLayer(layer);
+                }
+            });
+            
+            // Adicionar nova camada com tema alternado
+            if (isDarkMode) {
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+                }).addTo(map);
+                document.getElementById('btnTema').textContent = '☀️';
+            } else {
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+                }).addTo(map);
+                document.getElementById('btnTema').textContent = '🌙';
+            }
         }
 
         function initGPS() {
@@ -1334,6 +1452,11 @@
                 // Iniciar monitoramento de navegação
                 iniciarMonitoramentoNavegacao();
                 
+                // Falar instrução inicial
+                if (voiceNavigationEnabled) {
+                    falarInstrucao(`Navegação iniciada. Siga por ${route.distanciaKm} quilômetros. Tempo estimado: ${route.duracaoMinutos} minutos.`);
+                }
+                
             } catch (error) {
                 console.error('Erro ao calcular rota:', error);
                 alert('Erro ao calcular rota');
@@ -1451,6 +1574,19 @@
                 document.getElementById('instructionText').textContent = 'Você chegou ao destino!';
                 document.getElementById('instructionDistance').textContent = 'Chegada';
                 document.getElementById('instructionDetails').textContent = 'Navegação finalizada';
+                
+                // Mostrar indicador de chegada
+                document.getElementById('arrivalIndicator').style.display = 'block';
+                
+                // Falar chegada
+                if (voiceNavigationEnabled) {
+                    falarInstrucao('Você chegou ao seu destino. Navegação finalizada.');
+                }
+                
+                setTimeout(() => {
+                    document.getElementById('arrivalIndicator').style.display = 'none';
+                }, 5000);
+                
                 pararNavegacao();
                 return;
             }
@@ -1489,6 +1625,23 @@
             document.getElementById('instructionText').textContent = instrucao.text;
             document.getElementById('instructionDistance').textContent = instrucao.distancia;
             document.getElementById('instructionDetails').textContent = instrucao.detalhes;
+
+            // Falar instruções de navegação
+            const agora = Date.now();
+            if (voiceNavigationEnabled && agora - lastVoiceInstruction > 10000) {
+                let textoVoz = '';
+                
+                if (distancia < 0.1) {
+                    textoVoz = `Em ${Math.round(distancia * 1000)} metros, você chegará ao destino.`;
+                } else if (distancia < 0.5) {
+                    textoVoz = `Continue por ${Math.round(distancia * 1000)} metros. ${instrucao.text}.`;
+                } else {
+                    textoVoz = `Continue por ${distancia.toFixed(1)} quilômetros. ${instrucao.text}.`;
+                }
+                
+                falarInstrucao(textoVoz);
+                lastVoiceInstruction = agora;
+            }
         }
 
         // Atualizar informações de navegação
@@ -1553,6 +1706,128 @@
                 map.removeLayer(routeLayer);
                 routeLayer = null;
             }
+            
+            // Parar qualquer fala em andamento
+            speechSynthesis.cancel();
+        }
+
+        // ========== NAVEGAÇÃO POR VOZ ==========
+        function toggleVoiceNavigation() {
+            voiceNavigationEnabled = !voiceNavigationEnabled;
+            const voiceBtn = document.getElementById('voiceBtn');
+            const voiceStatus = document.getElementById('voiceStatus');
+            
+            if (voiceNavigationEnabled) {
+                voiceBtn.classList.add('listening');
+                voiceStatus.style.display = 'block';
+                voiceStatus.textContent = 'Navegação por voz ativada';
+                
+                // Testar síntese de voz
+                if (speechSynthesis.speaking) {
+                    speechSynthesis.cancel();
+                }
+                
+                falarInstrucao('Navegação por voz ativada.');
+                
+                // Iniciar reconhecimento de voz se disponível
+                iniciarReconhecimentoVoz();
+                
+            } else {
+                voiceBtn.classList.remove('listening');
+                voiceStatus.style.display = 'none';
+                
+                // Parar qualquer fala em andamento
+                speechSynthesis.cancel();
+                
+                // Parar reconhecimento de voz
+                if (recognition) {
+                    recognition.stop();
+                }
+            }
+        }
+
+        function falarInstrucao(texto) {
+            if (!voiceNavigationEnabled) return;
+            
+            const utterance = new SpeechSynthesisUtterance(texto);
+            utterance.lang = 'pt-BR';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            speechSynthesis.speak(utterance);
+        }
+
+        function iniciarReconhecimentoVoz() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.log('Reconhecimento de voz não suportado');
+                return;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'pt-BR';
+            
+            recognition.onstart = function() {
+                console.log('Reconhecimento de voz iniciado');
+            };
+            
+            recognition.onresult = function(event) {
+                const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+                console.log('Comando de voz:', transcript);
+                
+                processarComandoVoz(transcript);
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('Erro no reconhecimento de voz:', event.error);
+            };
+            
+            recognition.start();
+        }
+
+        function processarComandoVoz(comando) {
+            const voiceStatus = document.getElementById('voiceStatus');
+            
+            if (comando.includes('parar navegação') || comando.includes('parar')) {
+                voiceStatus.textContent = 'Parando navegação...';
+                pararNavegacao();
+                falarInstrucao('Navegação parada.');
+            } else if (comando.includes('iniciar navegação') || comando.includes('navegar')) {
+                voiceStatus.textContent = 'Iniciando navegação...';
+                iniciarNavegacao();
+            } else if (comando.includes('centralizar')) {
+                voiceStatus.textContent = 'Centralizando no usuário...';
+                centralizarNoUsuario();
+                falarInstrucao('Mapa centralizado na sua posição.');
+            } else if (comando.includes('destino')) {
+                // Extrair endereço do comando
+                const endereco = comando.replace('destino', '').trim();
+                if (endereco) {
+                    voiceStatus.textContent = `Definindo destino: ${endereco}`;
+                    document.getElementById('destinoNavegacao').value = endereco;
+                    falarInstrucao(`Destino definido para ${endereco}`);
+                }
+            } else if (comando.includes('silenciar') || comando.includes('silêncio')) {
+                voiceStatus.textContent = 'Navegação por voz desativada';
+                document.getElementById('voiceBtn').classList.remove('listening');
+                voiceNavigationEnabled = false;
+                speechSynthesis.cancel();
+                if (recognition) {
+                    recognition.stop();
+                }
+            } else {
+                voiceStatus.textContent = `Comando: ${comando}`;
+                falarInstrucao('Comando não reconhecido. Tente "iniciar navegação", "parar navegação" ou "centralizar".');
+            }
+            
+            setTimeout(() => {
+                if (voiceNavigationEnabled) {
+                    voiceStatus.textContent = 'Navegação por voz ativada';
+                }
+            }, 3000);
         }
 
         // ========== INICIALIZAÇÃO ==========
