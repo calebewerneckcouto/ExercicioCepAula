@@ -774,7 +774,6 @@
                 try {
                     console.log('Tentando geocodificar via backend Java...', endereco);
                     
-                    // Garante que está enviando o campo correto
                     const payload = {
                         enderecoCompleto: endereco.enderecoCompleto
                     };
@@ -890,7 +889,7 @@
             async calcularRotaExterna(origem, destino) {
                 try {
                     const response = await fetch(
-                        `https://router.project-osrm.org/route/v1/driving/${origem.longitude},${origem.latitude};${destino.longitude},${destino.latitude}?overview=full&geometries=geojson`
+                        `https://router.project-osrm.org/route/v1/driving/${origem.longitude},${origem.latitude};${destino.longitude},${destino.latitude}?overview=full&geometries=geojson&steps=true`
                     );
                     const data = await response.json();
                     
@@ -902,7 +901,8 @@
                     return {
                         distanciaKm: (route.distance / 1000).toFixed(2),
                         duracaoMinutos: Math.round(route.duration / 60),
-                        polyline: JSON.stringify(route.geometry)
+                        polyline: JSON.stringify(route.geometry),
+                        steps: route.legs[0].steps || []
                     };
                 } catch (error) {
                     console.error('Erro no cálculo externo de rota:', error);
@@ -930,10 +930,13 @@
         let speechSynthesis = window.speechSynthesis;
         let recognition = null;
 
-        // NOVAS VARIÁVEIS PARA NAVEGAÇÃO AVANÇADA
+        // VARIÁVEIS PARA NAVEGAÇÃO AVANÇADA
         let navigationInterval;
         let lastRouteCalculation = 0;
         let lastVoiceInstruction = 0;
+        let routeSteps = [];
+        let currentStepIndex = 0;
+        let previousPosition = null;
 
         // ========== FUNÇÕES DE CONTROLE DAS ABAS ==========
         function openTab(tabName, buttonElement) {
@@ -1274,13 +1277,17 @@
         }
 
         function handlePositionUpdate(position) {
-            currentPosition = {
+            const newPosition = {
                 lat: position.coords.latitude,
                 lng: position.coords.longitude,
                 accuracy: position.coords.accuracy,
                 speed: position.coords.speed || 0,
                 heading: position.coords.heading
             };
+
+            // Atualizar posição anterior antes de definir a nova
+            previousPosition = currentPosition;
+            currentPosition = newPosition;
 
             updateGPSStatus('GPS Ativo', true);
             updateSpeedIndicator(currentPosition.speed);
@@ -1446,6 +1453,8 @@
                 const route = await backendService.calcularRota(origem, destino);
                 
                 currentRoute = route;
+                routeSteps = route.steps || [];
+                currentStepIndex = 0;
                 exibirRotaNoMapa(route);
                 atualizarInformacoesNavegacao();
                 
@@ -1538,6 +1547,8 @@
                     
                     const novaRota = await backendService.calcularRota(origem, destino);
                     currentRoute = novaRota;
+                    routeSteps = novaRota.steps || [];
+                    currentStepIndex = 0;
                     exibirRotaNoMapa(novaRota);
                     atualizarInformacoesNavegacao();
                     lastRouteCalculation = agora;
@@ -1560,7 +1571,108 @@
             }, 5000);
         }
 
-        // Atualizar instruções de navegação
+        // NOVA FUNÇÃO: Calcular direção entre duas posições
+        function calcularDirecaoEntrePosicoes(pos1, pos2) {
+            const dLon = (pos2.lng - pos1.lng) * Math.PI / 180;
+            const y = Math.sin(dLon) * Math.cos(pos2.lat * Math.PI / 180);
+            const x = Math.cos(pos1.lat * Math.PI / 180) * Math.sin(pos2.lat * Math.PI / 180) -
+                     Math.sin(pos1.lat * Math.PI / 180) * Math.cos(pos2.lat * Math.PI / 180) * Math.cos(dLon);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+
+        // NOVA FUNÇÃO: Gerar instrução de navegação inteligente
+        function gerarInstrucaoNavegacao() {
+            if (!currentPosition || !destination || !previousPosition) {
+                return {
+                    icon: '📍',
+                    text: 'Siga em frente',
+                    distancia: 'Calculando...',
+                    detalhes: 'Aguardando dados de GPS'
+                };
+            }
+
+            const distancia = calcularDistancia(
+                currentPosition.lat, currentPosition.lng,
+                destination.lat, destination.lng
+            );
+
+            // Calcular direção para o destino
+            const direcaoDestino = calcularDirecaoEntrePosicoes(currentPosition, destination);
+            
+            // Calcular direção do movimento (baseado na posição anterior e atual)
+            const direcaoMovimento = calcularDirecaoEntrePosicoes(previousPosition, currentPosition);
+            
+            // Calcular diferença entre direção do movimento e direção para o destino
+            let diferencaAngulo = ((direcaoDestino - direcaoMovimento + 540) % 360) - 180;
+
+            const distanciaMetros = Math.round(distancia * 1000);
+
+            // Lógica de instruções baseada na diferença de ângulo
+            if (Math.abs(diferencaAngulo) < 30) {
+                return {
+                    icon: '⬆️',
+                    text: 'Siga em frente',
+                    distancia: `${distanciaMetros} m`,
+                    detalhes: 'Continue na rota atual'
+                };
+            } else if (diferencaAngulo > 30 && diferencaAngulo <= 100) {
+                return {
+                    icon: '↪️',
+                    text: 'Vire à direita',
+                    distancia: `${distanciaMetros} m`,
+                    detalhes: 'Prepare-se para virar à direita'
+                };
+            } else if (diferencaAngulo > 100) {
+                return {
+                    icon: '⤴️',
+                    text: 'Vire fortemente à direita',
+                    distancia: `${distanciaMetros} m`,
+                    detalhes: 'Curva acentuada à direita à frente'
+                };
+            } else if (diferencaAngulo < -30 && diferencaAngulo >= -100) {
+                return {
+                    icon: '↩️',
+                    text: 'Vire à esquerda',
+                    distancia: `${distanciaMetros} m`,
+                    detalhes: 'Prepare-se para virar à esquerda'
+                };
+            } else if (diferencaAngulo < -100) {
+                return {
+                    icon: '⤵️',
+                    text: 'Vire fortemente à esquerda',
+                    distancia: `${distanciaMetros} m`,
+                    detalhes: 'Curva acentuada à esquerda à frente'
+                };
+            }
+
+            // Fallback para instruções baseadas apenas na direção do destino
+            return gerarInstrucaoPorDirecao(direcaoDestino, distancia);
+        }
+
+        // Função auxiliar para instruções por direção cardinal
+        function gerarInstrucaoPorDirecao(bearing, distancia) {
+            const distanciaMetros = Math.round(distancia * 1000);
+            
+            if (bearing >= 337.5 || bearing < 22.5) {
+                return { icon: '⬆️', text: 'Siga para o Norte', distancia: `${distanciaMetros} m`, detalhes: 'Mantenha o Norte' };
+            } else if (bearing >= 22.5 && bearing < 67.5) {
+                return { icon: '↗️', text: 'Siga para o Nordeste', distancia: `${distanciaMetros} m`, detalhes: 'Direção Nordeste' };
+            } else if (bearing >= 67.5 && bearing < 112.5) {
+                return { icon: '➡️', text: 'Siga para o Leste', distancia: `${distanciaMetros} m`, detalhes: 'Mantenha o Leste' };
+            } else if (bearing >= 112.5 && bearing < 157.5) {
+                return { icon: '↘️', text: 'Siga para o Sudeste', distancia: `${distanciaMetros} m`, detalhes: 'Direção Sudeste' };
+            } else if (bearing >= 157.5 && bearing < 202.5) {
+                return { icon: '⬇️', text: 'Siga para o Sul', distancia: `${distanciaMetros} m`, detalhes: 'Mantenha o Sul' };
+            } else if (bearing >= 202.5 && bearing < 247.5) {
+                return { icon: '↙️', text: 'Siga para o Sudoeste', distancia: `${distanciaMetros} m`, detalhes: 'Direção Sudoeste' };
+            } else if (bearing >= 247.5 && bearing < 292.5) {
+                return { icon: '⬅️', text: 'Siga para o Oeste', distancia: `${distanciaMetros} m`, detalhes: 'Mantenha o Oeste' };
+            } else {
+                return { icon: '↖️', text: 'Siga para o Noroeste', distancia: `${distanciaMetros} m`, detalhes: 'Direção Noroeste' };
+            }
+        }
+
+        // ATUALIZAÇÃO PRINCIPAL: Função melhorada para instruções de navegação
         function updateNavigationInstructions() {
             if (!currentPosition || !destination) return;
 
@@ -1569,16 +1681,15 @@
                 destination.lat, destination.lng
             );
 
+            // Verificar se chegou ao destino
             if (distancia < 0.02) {
                 document.getElementById('instructionIcon').textContent = '🎯';
                 document.getElementById('instructionText').textContent = 'Você chegou ao destino!';
                 document.getElementById('instructionDistance').textContent = 'Chegada';
                 document.getElementById('instructionDetails').textContent = 'Navegação finalizada';
                 
-                // Mostrar indicador de chegada
                 document.getElementById('arrivalIndicator').style.display = 'block';
                 
-                // Falar chegada
                 if (voiceNavigationEnabled) {
                     falarInstrucao('Você chegou ao seu destino. Navegação finalizada.');
                 }
@@ -1591,36 +1702,9 @@
                 return;
             }
 
-            const bearing = calcularDirecao(
-                currentPosition.lat, currentPosition.lng,
-                destination.lat, destination.lng
-            );
-
-            let instrucao = {
-                icon: '📍',
-                text: 'Siga em frente',
-                distancia: `${Math.round(distancia * 1000)} m`,
-                detalhes: 'Continue na rota atual'
-            };
-
-            if (bearing >= 337.5 || bearing < 22.5) {
-                instrucao = { icon: '⬆️', text: 'Siga para o Norte', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Mantenha o Norte' };
-            } else if (bearing >= 22.5 && bearing < 67.5) {
-                instrucao = { icon: '↗️', text: 'Siga para o Nordeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Direção Nordeste' };
-            } else if (bearing >= 67.5 && bearing < 112.5) {
-                instrucao = { icon: '➡️', text: 'Siga para o Leste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Mantenha o Leste' };
-            } else if (bearing >= 112.5 && bearing < 157.5) {
-                instrucao = { icon: '↘️', text: 'Siga para o Sudeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Direção Sudeste' };
-            } else if (bearing >= 157.5 && bearing < 202.5) {
-                instrucao = { icon: '⬇️', text: 'Siga para o Sul', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Mantenha o Sul' };
-            } else if (bearing >= 202.5 && bearing < 247.5) {
-                instrucao = { icon: '↙️', text: 'Siga para o Sudoeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Direção Sudoeste' };
-            } else if (bearing >= 247.5 && bearing < 292.5) {
-                instrucao = { icon: '⬅️', text: 'Siga para o Oeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Mantenha o Oeste' };
-            } else if (bearing >= 292.5 && bearing < 337.5) {
-                instrucao = { icon: '↖️', text: 'Siga para o Noroeste', distancia: `${Math.round(distancia * 1000)} m`, detalhes: 'Direção Noroeste' };
-            }
-
+            // Gerar instrução de navegação inteligente
+            const instrucao = gerarInstrucaoNavegacao();
+            
             document.getElementById('instructionIcon').textContent = instrucao.icon;
             document.getElementById('instructionText').textContent = instrucao.text;
             document.getElementById('instructionDistance').textContent = instrucao.distancia;
@@ -1628,15 +1712,17 @@
 
             // Falar instruções de navegação
             const agora = Date.now();
-            if (voiceNavigationEnabled && agora - lastVoiceInstruction > 10000) {
+            if (voiceNavigationEnabled && agora - lastVoiceInstruction > 15000) {
                 let textoVoz = '';
                 
                 if (distancia < 0.1) {
-                    textoVoz = `Em ${Math.round(distancia * 1000)} metros, você chegará ao destino.`;
+                    textoVoz = `Em ${Math.round(distancia * 1000)} metros, ${instrucao.text.toLowerCase()}`;
                 } else if (distancia < 0.5) {
-                    textoVoz = `Continue por ${Math.round(distancia * 1000)} metros. ${instrucao.text}.`;
+                    textoVoz = `Em ${Math.round(distancia * 1000)} metros, ${instrucao.text.toLowerCase()}`;
+                } else if (distancia < 1) {
+                    textoVoz = `Continue por ${Math.round(distancia * 1000)} metros, depois ${instrucao.text.toLowerCase()}`;
                 } else {
-                    textoVoz = `Continue por ${distancia.toFixed(1)} quilômetros. ${instrucao.text}.`;
+                    textoVoz = `Continue por ${distancia.toFixed(1)} quilômetros, ${instrucao.text.toLowerCase()}`;
                 }
                 
                 falarInstrucao(textoVoz);
@@ -1671,7 +1757,7 @@
             return R * c;
         }
 
-        // Calcular direção
+        // Calcular direção (mantida para compatibilidade)
         function calcularDirecao(lat1, lon1, lat2, lon2) {
             const dLon = (lon2 - lon1) * Math.PI / 180;
             const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
@@ -1722,24 +1808,20 @@
                 voiceStatus.style.display = 'block';
                 voiceStatus.textContent = 'Navegação por voz ativada';
                 
-                // Testar síntese de voz
                 if (speechSynthesis.speaking) {
                     speechSynthesis.cancel();
                 }
                 
                 falarInstrucao('Navegação por voz ativada.');
                 
-                // Iniciar reconhecimento de voz se disponível
                 iniciarReconhecimentoVoz();
                 
             } else {
                 voiceBtn.classList.remove('listening');
                 voiceStatus.style.display = 'none';
                 
-                // Parar qualquer fala em andamento
                 speechSynthesis.cancel();
                 
-                // Parar reconhecimento de voz
                 if (recognition) {
                     recognition.stop();
                 }
@@ -1803,7 +1885,6 @@
                 centralizarNoUsuario();
                 falarInstrucao('Mapa centralizado na sua posição.');
             } else if (comando.includes('destino')) {
-                // Extrair endereço do comando
                 const endereco = comando.replace('destino', '').trim();
                 if (endereco) {
                     voiceStatus.textContent = `Definindo destino: ${endereco}`;
